@@ -1,0 +1,10 @@
+langchain
+langchain-mistralai
+langchain-google-genai
+langchain-community
+langchain-core 
+python-dotenv
+pypdf
+langchain-text-splitters
+langchain-chroma
+streamlit

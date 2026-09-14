@@ -1,0 +1,2233 @@
+
+DBMS COMPLETE NOTES
+===================
+
+TABLE OF CONTENTS
+-----------------
+UNIT 1: INTRODUCTION TO DATABASE SYSTEMS
+1. Overview of Database Systems
+2. Database System vs File System
+3. Database System Concepts and Architecture
+4. Data Models, Schema and Instances
+5. Data Independence
+6. Database Languages and Interfaces
+7. DDL and DML
+8. Overall Database Structure
+
+UNIT 2: DATA MODELING USING THE ENTITY-RELATIONSHIP MODEL
+9. ER Model Concepts
+10. Notation for ER Diagrams
+11. Mapping Constraints
+12. Keys
+13. Super Key, Candidate Key and Primary Key
+14. Generalization
+15. Aggregation
+16. Reduction of ER Diagrams to Tables
+17. Extended ER Model
+18. Higher Degree Relationships
+
+UNIT 3: RELATIONAL DATA MODEL AND LANGUAGE
+19. Relational Data Model Concepts
+20. Integrity Constraints
+21. Entity Integrity
+22. Referential Integrity
+23. Key Constraints
+24. Domain Constraints
+25. Relational Algebra
+26. Relational Calculus
+27. Tuple Relational Calculus
+28. Domain Relational Calculus
+
+UNIT 4: INTRODUCTION TO SQL
+29. Characteristics and Advantages of SQL
+30. SQL Data Types and Literals
+31. Types of SQL Commands
+32. SQL Operators
+33. Tables, Views and Indexes
+34. Queries and Subqueries
+35. Aggregate Functions
+36. INSERT, UPDATE and DELETE
+37. Joins
+38. UNION, INTERSECT and MINUS
+39. Cursors
+40. Triggers
+41. Procedures in SQL/PL SQL
+
+
+============================================================
+UNIT 1: INTRODUCTION TO DATABASE SYSTEMS
+============================================================
+
+1. OVERVIEW OF DATABASE SYSTEMS
+-------------------------------
+
+A database is an organized collection of related data. The data is stored in
+such a way that it can be easily accessed, managed and updated.
+
+Example:
+A college database may contain information about:
+- Students
+- Teachers
+- Courses
+- Departments
+- Marks
+- Attendance
+
+A Database Management System (DBMS) is software that allows users to create,
+store, retrieve, update and manage data in a database.
+
+Examples of DBMS:
+- MySQL
+- Oracle
+- PostgreSQL
+- Microsoft SQL Server
+- SQLite
+
+A database system generally consists of:
+
+1. Database
+   The actual collection of stored data.
+
+2. DBMS
+   Software used to manage the database.
+
+3. Database Users
+   People or applications that access the database.
+
+4. Database Applications
+   Programs that interact with the DBMS.
+
+Example:
+
+User --> Application --> DBMS --> Database
+
+Advantages of DBMS:
+- Reduces data redundancy
+- Improves data consistency
+- Provides data security
+- Supports data sharing
+- Provides backup and recovery
+- Allows concurrent access
+- Maintains data integrity
+- Provides data independence
+
+DATA REDUNDANCY:
+When the same data is stored unnecessarily at multiple places.
+
+Example:
+A student's phone number stored separately in admission, library and hostel
+files.
+
+DATA INCONSISTENCY:
+When the same data has different values at different locations.
+
+Example:
+One file contains phone number 1111111111 while another contains
+2222222222.
+
+
+2. DATABASE SYSTEM VS FILE SYSTEM
+---------------------------------
+
+A file system stores data in separate files. A DBMS stores related data in a
+structured database and manages it centrally.
+
+Comparison:
+
+1. Data Redundancy
+File System:
+High. The same information may be stored in many files.
+
+DBMS:
+Low. Data can be centralized and shared.
+
+2. Data Consistency
+File System:
+Difficult to maintain.
+
+DBMS:
+Better consistency through centralized management and constraints.
+
+3. Data Security
+File System:
+Limited control.
+
+DBMS:
+Provides authentication, authorization and privileges.
+
+4. Data Sharing
+File System:
+Difficult when many users need the same data.
+
+DBMS:
+Multiple users can access the database.
+
+5. Data Independence
+File System:
+Program and data structure are strongly dependent.
+
+DBMS:
+Provides logical and physical data independence.
+
+6. Backup and Recovery
+File System:
+Usually manual and difficult.
+
+DBMS:
+Provides backup and recovery mechanisms.
+
+7. Query Processing
+File System:
+Requires writing programs to search data.
+
+DBMS:
+Users can use SQL.
+
+8. Concurrency
+File System:
+Can create conflicts when multiple users modify data.
+
+DBMS:
+Provides concurrency control.
+
+Conclusion:
+A DBMS is more efficient, secure and manageable than a traditional file
+processing system.
+
+
+3. DATABASE SYSTEM CONCEPT AND ARCHITECTURE
+-------------------------------------------
+
+The ANSI/SPARC architecture divides a database system into three levels.
+
+1. External Level
+2. Conceptual Level
+3. Internal Level
+
+EXTERNAL LEVEL
+
+This is the user view level.
+
+Different users may see different parts of the database.
+
+Example:
+A student may see:
+- Name
+- Roll number
+- Marks
+
+An administrator may see:
+- Student details
+- Fees
+- Attendance
+- Password-related information
+
+Thus, different users can have different views of the same database.
+
+CONCEPTUAL LEVEL
+
+This describes the complete logical structure of the database.
+
+It defines:
+- Entities
+- Attributes
+- Relationships
+- Constraints
+
+Example:
+STUDENT(Student_ID, Name, Department_ID)
+
+DEPARTMENT(Department_ID, Department_Name)
+
+INTERNAL LEVEL
+
+This is the physical storage level.
+
+It describes:
+- How data is stored on disk
+- File organization
+- Indexes
+- Storage structures
+- Access paths
+
+ARCHITECTURE DIAGRAM:
+
+Users
+  |
+External Level
+  |
+Conceptual Level
+  |
+Internal Level
+  |
+Physical Storage
+
+
+4. DATA MODEL, SCHEMA AND INSTANCES
+----------------------------------
+
+DATA MODEL
+
+A data model is a collection of concepts used to describe the structure of a
+database.
+
+It describes:
+- Data
+- Relationships
+- Constraints
+- Operations
+
+Types of data models:
+
+1. Hierarchical Data Model
+Data is organized like a tree.
+
+2. Network Data Model
+Data is represented using records connected through links.
+
+3. Relational Data Model
+Data is represented using tables.
+
+4. Entity Relationship Model
+Data is represented using entities and relationships.
+
+5. Object-Oriented Data Model
+Data is represented as objects.
+
+SCHEMA
+
+A database schema is the overall logical design or structure of a database.
+
+Example:
+
+STUDENT(
+    Student_ID,
+    Name,
+    Email,
+    Department
+)
+
+The schema normally changes rarely.
+
+INSTANCE
+
+A database instance is the actual data stored in the database at a particular
+time.
+
+Example:
+
+Student_ID | Name  | Department
+--------------------------------
+101        | Ravi  | CSE
+102        | Neha  | IT
+
+If a new student is added, the instance changes but the schema may remain the
+same.
+
+Schema = Design or blueprint
+Instance = Actual data at a particular moment
+
+
+5. DATA INDEPENDENCE
+--------------------
+
+Data independence means the ability to modify one level of the database
+without affecting the higher level.
+
+There are two types.
+
+A. Physical Data Independence
+
+The ability to change the internal storage structure without changing the
+conceptual schema or application programs.
+
+Example:
+Changing:
+- File organization
+- Storage device
+- Index structure
+
+Applications should continue to work.
+
+B. Logical Data Independence
+
+The ability to change the conceptual schema without changing user views or
+application programs.
+
+Example:
+Adding a new column:
+
+STUDENT(Student_ID, Name)
+
+to:
+
+STUDENT(Student_ID, Name, Email)
+
+Logical data independence is generally more difficult to achieve than physical
+data independence.
+
+
+6. DATABASE LANGUAGE AND INTERFACES
+-----------------------------------
+
+A database language is used to define and manipulate data.
+
+Main categories include:
+
+1. DDL - Data Definition Language
+2. DML - Data Manipulation Language
+3. DCL - Data Control Language
+4. TCL - Transaction Control Language
+
+DATABASE INTERFACES
+
+Users interact with a DBMS using different interfaces.
+
+1. Command Line Interface
+Users write commands directly.
+
+Example:
+SELECT * FROM STUDENT;
+
+2. Graphical User Interface
+Users interact through forms, buttons and menus.
+
+3. Forms-Based Interface
+Users enter information into predefined forms.
+
+4. Application Program Interface
+Applications communicate with the database through APIs or drivers.
+
+Examples:
+- JDBC
+- ODBC
+- Python database connectors
+
+5. Natural Language Interface
+Users may ask questions using natural language.
+
+Example:
+"Show all students from CSE."
+
+
+7. DATA DEFINITION LANGUAGE (DDL)
+---------------------------------
+
+DDL is used to define and modify the structure of database objects.
+
+Common DDL commands:
+- CREATE
+- ALTER
+- DROP
+- TRUNCATE
+- RENAME
+
+CREATE
+
+Used to create a database object.
+
+Example:
+
+CREATE TABLE Student (
+    Student_ID INT PRIMARY KEY,
+    Name VARCHAR(50),
+    Age INT
+);
+
+ALTER
+
+Used to modify an existing table.
+
+Example:
+
+ALTER TABLE Student
+ADD Email VARCHAR(100);
+
+DROP
+
+Used to permanently remove an object.
+
+Example:
+
+DROP TABLE Student;
+
+TRUNCATE
+
+Removes all records from a table while keeping the table structure.
+
+Example:
+
+TRUNCATE TABLE Student;
+
+RENAME
+
+Used to change the name of a database object.
+
+Example syntax varies between DBMS products.
+
+
+8. DATA MANIPULATION LANGUAGE (DML)
+-----------------------------------
+
+DML is used to retrieve and manipulate data.
+
+Main DML operations:
+- SELECT
+- INSERT
+- UPDATE
+- DELETE
+
+INSERT:
+Adds new records.
+
+UPDATE:
+Modifies existing records.
+
+DELETE:
+Removes records.
+
+SELECT:
+Retrieves data.
+
+Example:
+
+SELECT Name
+FROM Student
+WHERE Age > 18;
+
+
+9. OVERALL DATABASE STRUCTURE
+-----------------------------
+
+A database system contains several important components.
+
+1. Query Processor
+
+Responsible for understanding and executing SQL queries.
+
+It includes:
+
+a) DDL Interpreter
+Processes schema definitions.
+
+b) DML Compiler
+Converts DML statements into low-level instructions.
+
+c) Query Optimizer
+Finds an efficient way to execute a query.
+
+d) Query Evaluation Engine
+Executes the selected query plan.
+
+2. Storage Manager
+
+Acts as an interface between stored data and queries.
+
+Components include:
+
+a) Authorization and Integrity Manager
+Checks user permissions and constraints.
+
+b) Transaction Manager
+Maintains correctness during concurrent transactions.
+
+c) File Manager
+Manages physical storage of data.
+
+d) Buffer Manager
+Moves data between disk and main memory.
+
+3. Stored Data
+
+Includes:
+- Data files
+- Data dictionary
+- Indexes
+- Statistical information
+
+DATA DICTIONARY
+
+A data dictionary stores metadata, which means data about data.
+
+Example metadata:
+- Table names
+- Column names
+- Data types
+- Constraints
+- User permissions
+
+
+============================================================
+UNIT 2: DATA MODELING USING THE ENTITY-RELATIONSHIP MODEL
+============================================================
+
+10. ER MODEL CONCEPTS
+---------------------
+
+The Entity Relationship Model is a high-level conceptual data model used to
+design a database.
+
+It represents:
+- Entities
+- Attributes
+- Relationships
+
+ENTITY
+
+An entity is a real-world object that can be uniquely identified.
+
+Examples:
+- Student
+- Teacher
+- Course
+- Department
+
+ENTITY SET
+
+A collection of similar entities.
+
+Example:
+All students in a college form the STUDENT entity set.
+
+ATTRIBUTE
+
+An attribute describes a property of an entity.
+
+Example:
+
+STUDENT:
+- Student_ID
+- Name
+- Age
+- Email
+
+Types of attributes:
+
+1. Simple Attribute
+Cannot be divided further.
+
+Example:
+Age
+
+2. Composite Attribute
+Can be divided into smaller attributes.
+
+Example:
+Name --> First_Name + Last_Name
+
+3. Single-Valued Attribute
+Has one value for each entity.
+
+Example:
+Date of Birth
+
+4. Multi-Valued Attribute
+Can have multiple values.
+
+Example:
+Phone_Number
+
+5. Derived Attribute
+Can be calculated from another attribute.
+
+Example:
+Age can be derived from Date_of_Birth.
+
+6. Stored Attribute
+Actually stored in the database.
+
+Example:
+Date_of_Birth
+
+
+RELATIONSHIP
+
+A relationship represents an association between entities.
+
+Example:
+
+STUDENT ---- ENROLLS ---- COURSE
+
+Here, ENROLLS is a relationship.
+
+RELATIONSHIP SET
+
+A collection of similar relationships.
+
+
+11. NOTATION FOR ER DIAGRAM
+---------------------------
+
+Common ER diagram notation:
+
+Rectangle:
+Represents an Entity.
+
+Example:
+[STUDENT]
+
+Diamond:
+Represents a Relationship.
+
+Example:
+STUDENT <---- ENROLLS ----> COURSE
+
+Oval:
+Represents an Attribute.
+
+Example:
+        Name
+          |
+      [STUDENT]
+
+Underlined Attribute:
+Represents a Key Attribute.
+
+Example:
+Student_ID
+
+Double Oval:
+Represents a Multi-Valued Attribute.
+
+Example:
+Phone_Number
+
+Dashed Oval:
+Represents a Derived Attribute.
+
+Example:
+Age
+
+Double Rectangle:
+Represents a Weak Entity.
+
+Double Diamond:
+Represents an Identifying Relationship.
+
+
+12. MAPPING CONSTRAINTS
+-----------------------
+
+Mapping constraints specify the number of entities that can participate in a
+relationship.
+
+Types:
+
+1. One-to-One (1:1)
+
+One entity in A is associated with at most one entity in B.
+
+Example:
+PERSON ---- has ---- PASSPORT
+
+One person has one passport and one passport belongs to one person.
+
+2. One-to-Many (1:N)
+
+One entity in A can be associated with many entities in B.
+
+Example:
+DEPARTMENT ---- has ---- STUDENT
+
+One department can have many students.
+
+3. Many-to-One (N:1)
+
+Many entities in A can be associated with one entity in B.
+
+Example:
+Many students belong to one department.
+
+4. Many-to-Many (M:N)
+
+Many entities in A can be associated with many entities in B.
+
+Example:
+STUDENT ---- ENROLLS ---- COURSE
+
+A student can enroll in many courses.
+A course can have many students.
+
+PARTICIPATION CONSTRAINT
+
+1. Total Participation
+Every entity must participate in the relationship.
+
+2. Partial Participation
+Some entities may not participate in the relationship.
+
+
+13. KEYS
+--------
+
+A key is an attribute or set of attributes used to identify a tuple or record.
+
+Types include:
+- Super Key
+- Candidate Key
+- Primary Key
+- Alternate Key
+- Foreign Key
+- Composite Key
+
+
+14. SUPER KEY, CANDIDATE KEY AND PRIMARY KEY
+--------------------------------------------
+
+SUPER KEY
+
+A super key is any attribute or combination of attributes that uniquely
+identifies a record.
+
+Example:
+
+Student_ID = 101
+
+If Student_ID uniquely identifies a student, then:
+
+{Student_ID}
+{Student_ID, Name}
+
+can both be super keys.
+
+CANDIDATE KEY
+
+A candidate key is a minimal super key.
+
+Minimal means no unnecessary attribute should exist.
+
+Example:
+If Student_ID and Email are individually unique:
+
+Candidate Keys:
+- Student_ID
+- Email
+
+PRIMARY KEY
+
+One candidate key selected to uniquely identify each record is called the
+primary key.
+
+Example:
+
+Student_ID INT PRIMARY KEY
+
+Properties:
+- Unique
+- Cannot be NULL
+
+ALTERNATE KEY
+
+Candidate keys that are not selected as the primary key.
+
+FOREIGN KEY
+
+An attribute in one table that refers to the primary key of another table.
+
+Example:
+
+DEPARTMENT(
+    Department_ID PRIMARY KEY
+)
+
+STUDENT(
+    Student_ID PRIMARY KEY,
+    Department_ID FOREIGN KEY
+)
+
+
+15. GENERALIZATION
+------------------
+
+Generalization is a bottom-up approach in which similar lower-level entities
+are combined into a higher-level entity.
+
+Example:
+
+CAR
+BIKE
+
+Both can be generalized into:
+
+VEHICLE
+
+VEHICLE
+   |
+---------
+|       |
+CAR    BIKE
+
+Common attributes can be placed in VEHICLE.
+
+Example:
+VEHICLE:
+- Vehicle_ID
+- Brand
+
+CAR:
+- Number_of_Doors
+
+BIKE:
+- Engine_CC
+
+
+16. AGGREGATION
+---------------
+
+Aggregation is used when a relationship itself needs to participate in another
+relationship.
+
+Example:
+
+EMPLOYEE ---- WORKS_ON ---- PROJECT
+
+Suppose a MANAGER monitors the relationship WORKS_ON.
+
+The relationship WORKS_ON can be treated as a higher-level entity through
+aggregation.
+
+Aggregation is useful when a relationship has to be connected to another
+relationship.
+
+
+17. REDUCTION OF ER DIAGRAMS TO TABLES
+--------------------------------------
+
+ER diagrams are converted into relational tables.
+
+A. Strong Entity
+
+Each strong entity becomes a separate table.
+
+Example:
+
+STUDENT
+Attributes:
+Student_ID, Name, Email
+
+Table:
+
+STUDENT(
+    Student_ID PRIMARY KEY,
+    Name,
+    Email
+)
+
+B. Weak Entity
+
+Create a table for the weak entity and include the primary key of the owner
+entity.
+
+Example:
+
+EMPLOYEE(Employee_ID)
+
+DEPENDENT(
+    Dependent_Name,
+    Employee_ID
+)
+
+The key may be a combination of:
+(Employee_ID, Dependent_Name)
+
+C. One-to-One Relationship
+
+A foreign key can be placed in either relation, preferably where participation
+is total.
+
+D. One-to-Many Relationship
+
+Place the primary key of the "one" side as a foreign key in the "many" side.
+
+Example:
+
+DEPARTMENT(Department_ID)
+
+STUDENT(
+    Student_ID,
+    Department_ID FOREIGN KEY
+)
+
+E. Many-to-Many Relationship
+
+Create a separate relation.
+
+Example:
+
+STUDENT(Student_ID)
+COURSE(Course_ID)
+
+ENROLLMENT(
+    Student_ID,
+    Course_ID
+)
+
+Primary key can be:
+(Student_ID, Course_ID)
+
+
+18. EXTENDED ER MODEL
+---------------------
+
+The Extended Entity Relationship Model extends the basic ER model.
+
+Important concepts:
+- Specialization
+- Generalization
+- Inheritance
+- Categorization
+
+SPECIALIZATION
+
+A top-down approach.
+
+A higher-level entity is divided into lower-level specialized entities.
+
+Example:
+
+EMPLOYEE
+   |
+----------------
+|              |
+TEACHER      CLERK
+
+Teacher and Clerk inherit common attributes from Employee.
+
+GENERALIZATION
+
+A bottom-up approach.
+
+Multiple lower-level entities are combined into a generalized entity.
+
+INHERITANCE
+
+A subclass inherits attributes of its superclass.
+
+Example:
+
+PERSON
+- Name
+- Address
+
+STUDENT inherits these attributes and may add:
+- Roll_Number
+
+Constraints in specialization:
+
+1. Disjoint Constraint
+An entity can belong to only one subclass.
+
+2. Overlapping Constraint
+An entity can belong to multiple subclasses.
+
+3. Total Specialization
+Every superclass entity belongs to at least one subclass.
+
+4. Partial Specialization
+Some superclass entities may not belong to any subclass.
+
+
+19. RELATIONSHIP OF HIGHER DEGREE
+---------------------------------
+
+A relationship involving more than two entity sets is called a higher-degree
+relationship.
+
+1. Unary Relationship
+
+An entity is related to itself.
+
+Example:
+
+EMPLOYEE ---- manages ---- EMPLOYEE
+
+2. Binary Relationship
+
+Two entity sets participate.
+
+Example:
+
+STUDENT ---- enrolls ---- COURSE
+
+3. Ternary Relationship
+
+Three entity sets participate.
+
+Example:
+
+SUPPLIER ---- supplies ---- PART
+              |
+           PROJECT
+
+Example meaning:
+A supplier supplies a particular part for a particular project.
+
+Relationships of degree greater than three are also possible, though binary
+relationships are most common.
+
+
+============================================================
+UNIT 3: RELATIONAL DATA MODEL AND LANGUAGE
+============================================================
+
+20. RELATIONAL DATA MODEL CONCEPTS
+----------------------------------
+
+The relational model represents data in the form of relations or tables.
+
+Example:
+
+STUDENT
+
+Student_ID | Name | Department
+--------------------------------
+101        | Ravi | CSE
+102        | Neha | IT
+
+Important terms:
+
+RELATION:
+A table.
+
+TUPLE:
+A row in a table.
+
+ATTRIBUTE:
+A column in a table.
+
+DOMAIN:
+The set of allowed values for an attribute.
+
+DEGREE:
+Number of attributes or columns in a relation.
+
+CARDINALITY:
+Number of tuples or rows in a relation.
+
+Example:
+
+STUDENT(Student_ID, Name, Age)
+
+Degree = 3
+
+If there are 100 rows:
+
+Cardinality = 100
+
+
+21. INTEGRITY CONSTRAINTS
+-------------------------
+
+Integrity constraints are rules that ensure data accuracy and consistency.
+
+Major types:
+
+1. Domain Constraint
+2. Key Constraint
+3. Entity Integrity
+4. Referential Integrity
+
+
+22. ENTITY INTEGRITY
+--------------------
+
+Entity integrity states that the primary key of a relation cannot be NULL.
+
+Reason:
+The primary key must uniquely identify every record.
+
+Example:
+
+STUDENT
+
+Student_ID | Name
+-----------------
+NULL       | Ravi
+
+This is invalid if Student_ID is the primary key.
+
+
+23. REFERENTIAL INTEGRITY
+-------------------------
+
+Referential integrity maintains consistency between related tables.
+
+A foreign key must either:
+- Match an existing primary key value in the referenced table, or
+- Be NULL if NULL is allowed.
+
+Example:
+
+DEPARTMENT
+
+Department_ID
+-------------
+10
+20
+
+STUDENT
+
+Student_ID | Department_ID
+--------------------------
+101        | 10
+102        | 30
+
+Department_ID = 30 is invalid if it does not exist in DEPARTMENT.
+
+
+24. KEY CONSTRAINTS
+-------------------
+
+A key constraint ensures that certain attributes uniquely identify tuples.
+
+Example:
+
+STUDENT
+
+Student_ID must be unique.
+
+Valid:
+101
+102
+103
+
+Invalid:
+101
+101
+
+Common key constraints:
+- PRIMARY KEY
+- UNIQUE
+
+
+25. DOMAIN CONSTRAINTS
+---------------------
+
+A domain defines the allowed values for an attribute.
+
+Example:
+
+Age INT CHECK (Age >= 0 AND Age <= 150)
+
+Possible constraints include:
+- Data type
+- Range
+- Format
+- Default value
+- Allowed values
+
+Example:
+
+Gender CHAR(1) CHECK (Gender IN ('M', 'F', 'O'))
+
+
+26. RELATIONAL ALGEBRA
+----------------------
+
+Relational algebra is a procedural query language.
+
+It specifies:
+- What data is required
+- How to obtain it
+
+Important operations:
+
+1. Selection
+2. Projection
+3. Union
+4. Set Difference
+5. Cartesian Product
+6. Rename
+7. Join
+8. Intersection
+9. Division
+
+A. SELECTION (sigma)
+
+Selection chooses rows that satisfy a condition.
+
+Notation:
+
+sigma condition (Relation)
+
+Example:
+
+sigma Department = 'CSE' (STUDENT)
+
+Equivalent SQL:
+
+SELECT *
+FROM STUDENT
+WHERE Department = 'CSE';
+
+B. PROJECTION (pi)
+
+Projection chooses specific columns.
+
+Notation:
+
+pi Name, Department (STUDENT)
+
+Equivalent SQL:
+
+SELECT Name, Department
+FROM STUDENT;
+
+C. UNION
+
+Combines tuples from two compatible relations.
+
+Notation:
+
+R UNION S
+
+Conditions:
+- Same number of attributes
+- Compatible domains
+
+D. SET DIFFERENCE
+
+Returns tuples present in one relation but not another.
+
+Notation:
+
+R - S
+
+E. CARTESIAN PRODUCT
+
+Combines every tuple of one relation with every tuple of another.
+
+Notation:
+
+R x S
+
+If R has m rows and S has n rows, the result has m*n rows.
+
+F. RENAME
+
+Used to rename a relation or attribute.
+
+Notation:
+
+rho NewName (Relation)
+
+G. INTERSECTION
+
+Returns tuples common to both relations.
+
+R intersection S
+
+H. JOIN
+
+Combines related tuples from two relations.
+
+Example:
+
+STUDENT JOIN DEPARTMENT
+
+Common types:
+- Theta Join
+- Equi Join
+- Natural Join
+- Outer Join
+
+I. DIVISION
+
+Useful for queries involving "all".
+
+Example:
+Find students who have completed all required courses.
+
+
+27. RELATIONAL CALCULUS
+-----------------------
+
+Relational calculus is a non-procedural query language.
+
+It specifies what data is required but not how to obtain it.
+
+Types:
+1. Tuple Relational Calculus (TRC)
+2. Domain Relational Calculus (DRC)
+
+
+28. TUPLE RELATIONAL CALCULUS
+-----------------------------
+
+In TRC, variables represent tuples.
+
+General form:
+
+{ t | P(t) }
+
+Where:
+t = tuple variable
+P(t) = condition
+
+Example:
+
+Find students from CSE:
+
+{ t | STUDENT(t) AND t.Department = 'CSE' }
+
+TRC uses logical operators:
+- AND
+- OR
+- NOT
+- EXISTS
+- FOR ALL
+
+
+29. DOMAIN RELATIONAL CALCULUS
+------------------------------
+
+In DRC, variables represent attribute values rather than complete tuples.
+
+General form:
+
+{ <x1, x2, ..., xn> | Condition }
+
+Example:
+
+{ <Name> | EXISTS ID EXISTS Dept
+  (STUDENT(ID, Name, Dept) AND Dept = 'CSE') }
+
+Difference:
+
+TRC:
+Variables represent rows or tuples.
+
+DRC:
+Variables represent attribute values.
+
+
+============================================================
+UNIT 4: INTRODUCTION TO SQL
+============================================================
+
+30. CHARACTERISTICS OF SQL
+-------------------------
+
+SQL stands for Structured Query Language.
+
+Characteristics:
+- Simple and easy to learn
+- Declarative language
+- Standardized
+- Used with relational databases
+- Supports DDL and DML
+- Supports security
+- Supports transactions
+- Supports views
+- Supports integrity constraints
+
+SQL is declarative.
+
+This means users generally specify WHAT they want rather than HOW to retrieve
+it.
+
+
+31. ADVANTAGES OF SQL
+--------------------
+
+- Easy to use
+- Supports large databases
+- Allows data sharing
+- Provides security
+- Supports multiple users
+- Provides data integrity
+- Supports transactions
+- Portable across many database systems
+- Supports complex queries
+- Can be embedded in programming languages
+
+
+32. SQL DATA TYPES AND LITERALS
+-------------------------------
+
+COMMON SQL DATA TYPES
+
+1. Numeric Types
+- INT
+- INTEGER
+- SMALLINT
+- BIGINT
+- DECIMAL(p, s)
+- NUMERIC(p, s)
+- FLOAT
+- REAL
+
+Example:
+
+Salary DECIMAL(10, 2)
+
+2. Character Types
+- CHAR(n)
+- VARCHAR(n)
+- TEXT
+
+CHAR:
+Fixed length.
+
+VARCHAR:
+Variable length.
+
+3. Date and Time Types
+- DATE
+- TIME
+- TIMESTAMP
+- DATETIME depending on DBMS
+
+4. Boolean Type
+- BOOLEAN
+Supported differently by various DBMS products.
+
+LITERALS
+
+A literal is a fixed value written directly in a SQL statement.
+
+Examples:
+
+Numeric literal:
+100
+
+String literal:
+'Ravi'
+
+Date literal syntax depends on the DBMS.
+
+Boolean:
+TRUE or FALSE where supported.
+
+NULL:
+Represents an unknown, missing or not applicable value.
+
+
+33. TYPES OF SQL COMMANDS
+-------------------------
+
+A. DDL - Data Definition Language
+
+Commands:
+- CREATE
+- ALTER
+- DROP
+- TRUNCATE
+- RENAME
+
+B. DML - Data Manipulation Language
+
+Commands:
+- SELECT
+- INSERT
+- UPDATE
+- DELETE
+
+C. DCL - Data Control Language
+
+Commands:
+- GRANT
+- REVOKE
+
+GRANT gives privileges.
+
+Example:
+
+GRANT SELECT ON Student TO User1;
+
+REVOKE removes privileges.
+
+Example:
+
+REVOKE SELECT ON Student FROM User1;
+
+D. TCL - Transaction Control Language
+
+Commands:
+- COMMIT
+- ROLLBACK
+- SAVEPOINT
+
+COMMIT:
+Permanently saves a transaction.
+
+ROLLBACK:
+Undoes changes that have not been committed.
+
+SAVEPOINT:
+Creates a point inside a transaction to which we can later roll back.
+
+
+34. SQL OPERATORS
+----------------
+
+A. ARITHMETIC OPERATORS
+- +
+- -
+- *
+- /
+- %
+
+Example:
+
+SELECT Salary * 12
+FROM Employee;
+
+B. COMPARISON OPERATORS
+- =
+- >
+- <
+- >=
+- <=
+- <> or != depending on DBMS
+
+Example:
+
+WHERE Age >= 18
+
+C. LOGICAL OPERATORS
+- AND
+- OR
+- NOT
+
+Example:
+
+WHERE Department = 'CSE'
+AND Age > 18
+
+D. SPECIAL OPERATORS
+
+IN
+
+Checks whether a value belongs to a list.
+
+WHERE Department IN ('CSE', 'IT')
+
+BETWEEN
+
+Checks whether a value is inside a range.
+
+WHERE Salary BETWEEN 30000 AND 60000
+
+LIKE
+
+Used for pattern matching.
+
+% = any sequence of characters
+_ = exactly one character
+
+Example:
+
+WHERE Name LIKE 'A%'
+
+Finds names starting with A.
+
+IS NULL
+
+Checks NULL values.
+
+WHERE Email IS NULL
+
+EXISTS
+
+Checks whether a subquery returns at least one row.
+
+
+35. TABLES, VIEWS AND INDEXES
+-----------------------------
+
+TABLE
+
+A table stores data in rows and columns.
+
+Example:
+
+CREATE TABLE Student (
+    Student_ID INT PRIMARY KEY,
+    Name VARCHAR(50),
+    Age INT
+);
+
+VIEW
+
+A view is a virtual table based on a query.
+
+Example:
+
+CREATE VIEW CSE_Students AS
+SELECT Student_ID, Name
+FROM Student
+WHERE Department = 'CSE';
+
+Advantages:
+- Security
+- Simplifies complex queries
+- Provides customized views
+
+INDEX
+
+An index improves the speed of data retrieval.
+
+Example:
+
+CREATE INDEX idx_student_name
+ON Student(Name);
+
+Advantages:
+- Faster searching
+- Faster query execution in suitable cases
+
+Disadvantage:
+Indexes require extra storage and may slow INSERT, UPDATE and DELETE
+operations because indexes may also need updating.
+
+
+36. QUERIES AND SUBQUERIES
+--------------------------
+
+A query retrieves data from a database.
+
+Basic syntax:
+
+SELECT column1, column2
+FROM table_name
+WHERE condition;
+
+Example:
+
+SELECT Name, Age
+FROM Student
+WHERE Age > 18;
+
+SUBQUERY
+
+A subquery is a query inside another SQL query.
+
+Example:
+
+SELECT Name
+FROM Student
+WHERE Department_ID IN (
+    SELECT Department_ID
+    FROM Department
+    WHERE Location = 'Delhi'
+);
+
+Types of subqueries:
+- Single-row subquery
+- Multiple-row subquery
+- Multiple-column subquery
+- Correlated subquery
+
+CORRELATED SUBQUERY
+
+A correlated subquery depends on the outer query.
+
+Example:
+
+SELECT Name
+FROM Employee e
+WHERE Salary > (
+    SELECT AVG(Salary)
+    FROM Employee
+    WHERE Department_ID = e.Department_ID
+);
+
+
+37. AGGREGATE FUNCTIONS
+-----------------------
+
+Aggregate functions perform calculations on multiple rows and return a single
+result.
+
+Common aggregate functions:
+
+COUNT()
+SUM()
+AVG()
+MIN()
+MAX()
+
+COUNT
+
+SELECT COUNT(*)
+FROM Student;
+
+SUM
+
+SELECT SUM(Salary)
+FROM Employee;
+
+AVG
+
+SELECT AVG(Salary)
+FROM Employee;
+
+MIN
+
+SELECT MIN(Salary)
+FROM Employee;
+
+MAX
+
+SELECT MAX(Salary)
+FROM Employee;
+
+GROUP BY
+
+Used to group rows with the same value.
+
+Example:
+
+SELECT Department_ID, COUNT(*)
+FROM Employee
+GROUP BY Department_ID;
+
+HAVING
+
+Used to filter groups.
+
+Example:
+
+SELECT Department_ID, COUNT(*)
+FROM Employee
+GROUP BY Department_ID
+HAVING COUNT(*) > 5;
+
+Difference:
+
+WHERE filters individual rows.
+
+HAVING filters groups.
+
+
+38. INSERT OPERATION
+-------------------
+
+Used to add records.
+
+Example:
+
+INSERT INTO Student
+(Student_ID, Name, Age)
+VALUES
+(101, 'Ravi', 20);
+
+Multiple-row insert syntax may vary slightly by DBMS.
+
+
+39. UPDATE OPERATION
+-------------------
+
+Used to modify existing records.
+
+Example:
+
+UPDATE Student
+SET Age = 21
+WHERE Student_ID = 101;
+
+IMPORTANT:
+Without WHERE, multiple or all rows may be updated.
+
+Example:
+
+UPDATE Student
+SET Age = 21;
+
+
+40. DELETE OPERATION
+-------------------
+
+Used to remove rows.
+
+Example:
+
+DELETE FROM Student
+WHERE Student_ID = 101;
+
+Without WHERE:
+
+DELETE FROM Student;
+
+This removes all rows but normally keeps the table structure.
+
+
+41. JOINS
+---------
+
+A join combines rows from two or more related tables.
+
+Suppose:
+
+STUDENT
+
+Student_ID | Name | Department_ID
+
+DEPARTMENT
+
+Department_ID | Department_Name
+
+INNER JOIN
+
+Returns matching rows.
+
+SELECT Student.Name, Department.Department_Name
+FROM Student
+INNER JOIN Department
+ON Student.Department_ID = Department.Department_ID;
+
+LEFT OUTER JOIN
+
+Returns all rows from the left table and matching rows from the right table.
+
+SELECT Student.Name, Department.Department_Name
+FROM Student
+LEFT JOIN Department
+ON Student.Department_ID = Department.Department_ID;
+
+RIGHT OUTER JOIN
+
+Returns all rows from the right table and matching rows from the left table.
+
+FULL OUTER JOIN
+
+Returns matching rows and non-matching rows from both tables.
+Support varies by DBMS.
+
+SELF JOIN
+
+A table is joined with itself.
+
+Example:
+EMPLOYEE can be joined with EMPLOYEE to show employee-manager relationships.
+
+CROSS JOIN
+
+Returns the Cartesian product of two tables.
+
+
+42. UNION, INTERSECTION AND MINUS
+---------------------------------
+
+UNION
+
+Combines results and removes duplicates.
+
+SELECT Name FROM Student_A
+UNION
+SELECT Name FROM Student_B;
+
+UNION ALL
+
+Combines results and keeps duplicates.
+
+INTERSECT
+
+Returns common rows.
+
+SELECT Name FROM Student_A
+INTERSECT
+SELECT Name FROM Student_B;
+
+MINUS
+
+Returns rows in the first query but not in the second query.
+
+SELECT Name FROM Student_A
+MINUS
+SELECT Name FROM Student_B;
+
+Note:
+Some DBMS products use EXCEPT instead of MINUS.
+
+For set operations:
+- Number of columns should generally match.
+- Corresponding columns should have compatible data types.
+
+
+43. CURSORS
+-----------
+
+A cursor is a database object that allows row-by-row processing of query
+results.
+
+Cursors are especially useful in procedural SQL when operations must be
+performed on each row individually.
+
+Basic cursor steps:
+
+1. DECLARE the cursor
+2. OPEN the cursor
+3. FETCH rows
+4. Process rows
+5. CLOSE the cursor
+
+Conceptual PL/SQL example:
+
+DECLARE
+    CURSOR student_cursor IS
+        SELECT Student_ID, Name FROM Student;
+BEGIN
+    -- Open and fetch rows
+END;
+
+Types of cursors:
+
+1. Implicit Cursor
+Automatically created by the DBMS for certain SQL statements.
+
+2. Explicit Cursor
+Created and controlled by the programmer.
+
+
+44. TRIGGERS
+------------
+
+A trigger is a stored program that automatically executes when a specified
+database event occurs.
+
+Common events:
+- INSERT
+- UPDATE
+- DELETE
+
+Types:
+- BEFORE trigger
+- AFTER trigger
+- Row-level trigger
+- Statement-level trigger
+
+Example idea:
+
+Whenever a new employee is inserted, automatically store an entry in an audit
+table.
+
+General conceptual syntax:
+
+CREATE TRIGGER trigger_name
+AFTER INSERT ON Employee
+FOR EACH ROW
+BEGIN
+    -- Trigger statements
+END;
+
+Uses:
+- Auditing
+- Validation
+- Automatic calculations
+- Maintaining related data
+
+Caution:
+Too many complex triggers can make a database difficult to debug and maintain.
+
+
+45. PROCEDURES IN SQL/PL SQL
+----------------------------
+
+A stored procedure is a named block of SQL and procedural statements stored in
+the database.
+
+Advantages:
+- Code reusability
+- Reduced duplication
+- Better organization
+- Can improve security
+- Business logic can be centralized
+
+Basic PL/SQL procedure:
+
+CREATE OR REPLACE PROCEDURE add_student (
+    p_id IN NUMBER,
+    p_name IN VARCHAR2
+)
+AS
+BEGIN
+    INSERT INTO Student(Student_ID, Name)
+    VALUES (p_id, p_name);
+END;
+
+Calling a procedure syntax depends on the database environment.
+
+PL/SQL
+
+PL/SQL stands for Procedural Language extensions to SQL.
+
+It is primarily associated with Oracle Database.
+
+PL/SQL adds programming features to SQL, such as:
+- Variables
+- Conditions
+- Loops
+- Procedures
+- Functions
+- Cursors
+- Exception handling
+- Triggers
+
+BASIC PL/SQL BLOCK
+
+DECLARE
+    -- Variable declarations
+BEGIN
+    -- Executable statements
+EXCEPTION
+    -- Error handling
+END;
+
+
+IMPORTANT QUICK REVISION
+========================
+
+DATABASE:
+An organized collection of related data.
+
+DBMS:
+Software used to create and manage databases.
+
+SCHEMA:
+Structure or blueprint of the database.
+
+INSTANCE:
+Actual data stored at a particular time.
+
+DATA INDEPENDENCE:
+Ability to modify one level without affecting higher levels.
+
+PHYSICAL DATA INDEPENDENCE:
+Changes in physical storage do not affect logical structure.
+
+LOGICAL DATA INDEPENDENCE:
+Changes in logical structure do not affect user views.
+
+ENTITY:
+A real-world object.
+
+ATTRIBUTE:
+A property of an entity.
+
+RELATIONSHIP:
+Association between entities.
+
+PRIMARY KEY:
+Uniquely identifies a record and cannot be NULL.
+
+FOREIGN KEY:
+References a key in another table.
+
+SUPER KEY:
+Any attribute combination that uniquely identifies a tuple.
+
+CANDIDATE KEY:
+A minimal super key.
+
+1:1:
+One entity relates to one entity.
+
+1:N:
+One entity relates to many entities.
+
+M:N:
+Many entities relate to many entities.
+
+RELATION:
+Table.
+
+TUPLE:
+Row.
+
+ATTRIBUTE:
+Column.
+
+DOMAIN:
+Allowed set of values.
+
+DEGREE:
+Number of columns.
+
+CARDINALITY:
+Number of rows.
+
+ENTITY INTEGRITY:
+Primary key cannot be NULL.
+
+REFERENTIAL INTEGRITY:
+Foreign key must reference an existing value or be NULL when allowed.
+
+RELATIONAL ALGEBRA:
+Procedural query language.
+
+RELATIONAL CALCULUS:
+Non-procedural query language.
+
+TRC:
+Variables represent tuples.
+
+DRC:
+Variables represent domain values.
+
+DDL:
+CREATE, ALTER, DROP, TRUNCATE.
+
+DML:
+SELECT, INSERT, UPDATE, DELETE.
+
+DCL:
+GRANT, REVOKE.
+
+TCL:
+COMMIT, ROLLBACK, SAVEPOINT.
+
+VIEW:
+Virtual table based on a query.
+
+INDEX:
+Structure used to improve retrieval performance.
+
+SUBQUERY:
+Query inside another query.
+
+AGGREGATE FUNCTIONS:
+COUNT, SUM, AVG, MIN, MAX.
+
+WHERE:
+Filters rows.
+
+HAVING:
+Filters groups.
+
+INNER JOIN:
+Returns matching rows.
+
+LEFT JOIN:
+Returns all left rows and matching right rows.
+
+RIGHT JOIN:
+Returns all right rows and matching left rows.
+
+FULL OUTER JOIN:
+Returns matching and non-matching rows from both tables.
+
+UNION:
+Combines results and removes duplicates.
+
+UNION ALL:
+Combines results and keeps duplicates.
+
+INTERSECT:
+Returns common rows.
+
+MINUS/EXCEPT:
+Returns rows in the first result but not the second.
+
+CURSOR:
+Allows row-by-row processing.
+
+TRIGGER:
+Automatically executes when a specified event occurs.
+
+PROCEDURE:
+Named reusable program stored in the database.
+
+
+END OF DBMS NOTES
