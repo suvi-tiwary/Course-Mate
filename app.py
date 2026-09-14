@@ -11,18 +11,27 @@ from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-
-# =========================================================
-# CONFIG
-# =========================================================
-
 load_dotenv()
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+def get_api_key():
+    """Read the API key from Streamlit Cloud secrets or local environment variables."""
+    try:
+        secret_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get(
+            "GOOGLE_API_KEY"
+        )
+    except FileNotFoundError:
+        secret_key = None
+
+    return secret_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+
+
+GEMINI_API_KEY = get_api_key()
 
 if not GEMINI_API_KEY:
     st.error(
-        "🔑 GEMINI_API_KEY is missing. Add it to your .env file and restart."
+        "🔑 API key is missing. Add GEMINI_API_KEY to Streamlit Cloud Secrets "
+        "or to your local .env file, then restart the app."
     )
     st.stop()
 
