@@ -8,3 +8,5 @@ pypdf
 langchain-text-splitters
 langchain-chroma
 streamlit
+langchain-huggingface
+
