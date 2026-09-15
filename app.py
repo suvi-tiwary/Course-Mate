@@ -7,585 +7,341 @@ from dotenv import load_dotenv
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_chroma import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+
+# =========================================================
+# CONFIG
+# =========================================================
+
 load_dotenv()
 
-
-def get_api_key():
-    """Read the API key from Streamlit Cloud secrets or local environment variables."""
-    try:
-        secret_key = st.secrets.get("GEMINI_API_KEY") or st.secrets.get(
-            "GOOGLE_API_KEY"
-        )
-    except FileNotFoundError:
-        secret_key = None
-
-    return secret_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-
-
-GEMINI_API_KEY = get_api_key()
-
-if not GEMINI_API_KEY:
-    st.error(
-        "🔑 API key is missing. Add GEMINI_API_KEY to Streamlit Cloud Secrets "
-        "or to your local .env file, then restart the app."
-    )
-    st.stop()
-
-
 st.set_page_config(
-    page_title="Course-Mate",
-    page_icon="📚",
+    page_title="Course-Mate | AI Study Assistant",
+    page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 
 # =========================================================
-# PREMIUM DARK UI - FIXED & ENHANCED
+# API KEY
+# =========================================================
+
+try:
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+
+# =========================================================
+# DIRECTORIES
+# =========================================================
+
+TEMP_DIR = Path("./temp")
+TEMP_DIR.mkdir(exist_ok=True)
+
+
+# =========================================================
+# SESSION STATE
+# =========================================================
+
+if "vectorstore" not in st.session_state:
+    st.session_state.vectorstore = None
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+if "file_name" not in st.session_state:
+    st.session_state.file_name = None
+
+if "pages" not in st.session_state:
+    st.session_state.pages = 0
+
+if "chunks" not in st.session_state:
+    st.session_state.chunks = 0
+
+
+# =========================================================
+# CUSTOM CSS
 # =========================================================
 
 st.markdown(
     """
     <style>
-    
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-    
-    * {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
 
-    /* =========================================
+    /* ================================
        GLOBAL
-       ========================================= */
+    ================================= */
 
     .stApp {
-        background: linear-gradient(135deg, #0a0810 0%, #0f0d1a 50%, #08070d 100%) !important;
-        color: #F5F3FF !important;
+        background:
+            radial-gradient(
+                circle at 15% 10%,
+                rgba(124, 58, 237, 0.15),
+                transparent 30%
+            ),
+            radial-gradient(
+                circle at 85% 20%,
+                rgba(139, 92, 246, 0.10),
+                transparent 30%
+            ),
+            #08070d;
+        color: #f5f3ff;
     }
 
-    .main {
-        background: transparent !important;
-    }
-
-    .block-container {
-        max-width: 1300px;
-        padding-top: 2rem !important;
-        padding-bottom: 8rem !important;
-    }
-
-
-    /* =========================================
-       HEADER
-       ========================================= */
-
-    header[data-testid="stHeader"] {
-        background: rgba(10, 8, 16, 0.5) !important;
-        backdrop-filter: blur(15px) !important;
-        border-bottom: 1px solid rgba(124, 58, 237, 0.1) !important;
-    }
-
-    header[data-testid="stHeader"] > div {
-        background: transparent !important;
-    }
-
-    header[data-testid="stHeader"] button {
-        color: #9B8FB8 !important;
-        transition: all 0.3s ease !important;
-    }
-
-    header[data-testid="stHeader"] button:hover {
-        color: #7C3AED !important;
-    }
-
-
-    /* =========================================
+    /* ================================
        SIDEBAR
-       ========================================= */
+    ================================= */
 
     section[data-testid="stSidebar"] {
-        background: rgba(12, 10, 20, 0.7) !important;
-        backdrop-filter: blur(10px) !important;
-        border-right: 1px solid rgba(124, 58, 237, 0.1) !important;
+        background: #0d0b14;
+        border-right: 1px solid rgba(139, 92, 246, 0.15);
     }
 
     section[data-testid="stSidebar"] > div {
-        background: transparent !important;
+        padding-top: 1.5rem;
     }
 
-    section[data-testid="stSidebar"] * {
-        color: #D8D1E3;
+    .brand {
+        padding: 10px 5px 25px 5px;
     }
 
-    section[data-testid="stSidebar"] h1,
-    section[data-testid="stSidebar"] h2,
-    section[data-testid="stSidebar"] h3 {
-        color: #F8F7FF !important;
-        font-weight: 700 !important;
+    .brand-title {
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -1px;
+        color: #ffffff;
     }
 
-
-    /* =========================================
-       TEXT STYLES
-       ========================================= */
-
-    h1, h2, h3 {
-        color: #F8F7FF !important;
-        font-weight: 800 !important;
-        letter-spacing: -0.5px;
+    .brand-title span {
+        color: #a855f7;
     }
 
-    h1 { font-size: 2.5rem !important; }
-    h2 { font-size: 1.75rem !important; }
-    h3 { font-size: 1.25rem !important; }
-
-    p {
-        color: #AFA5BE !important;
-        line-height: 1.7 !important;
+    .brand-subtitle {
+        color: #9ca3af;
+        font-size: 13px;
+        margin-top: 4px;
     }
 
-    label {
-        color: #BEB4CC !important;
-        font-weight: 600 !important;
+    .sidebar-card {
+        background: rgba(255,255,255,0.025);
+        border: 1px solid rgba(168,85,247,0.15);
+        border-radius: 16px;
+        padding: 18px;
+        margin-top: 15px;
     }
 
-
-    /* =========================================
-       BUTTONS
-       ========================================= */
-
-    .stButton > button {
-        background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%) !important;
-        color: #FFFFFF !important;
-        border: 1px solid rgba(139, 92, 246, 0.3) !important;
-        border-radius: 12px !important;
-        font-weight: 700 !important;
-        font-size: 0.95rem !important;
-        padding: 0.75rem 1.5rem !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 4px 15px rgba(124, 58, 237, 0.2) !important;
+    .sidebar-heading {
+        color: #e9d5ff;
+        font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 10px;
     }
 
-    .stButton > button:hover {
-        background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%) !important;
-        border-color: #A78BFA !important;
-        box-shadow: 0 8px 30px rgba(124, 58, 237, 0.35) !important;
-        transform: translateY(-2px) !important;
+    .status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #c4b5fd;
     }
 
-    .stButton > button:active {
-        transform: translateY(0px) !important;
-    }
-
-
-    /* =========================================
-       FILE UPLOADER
-       ========================================= */
-
-    [data-testid="stFileUploader"] {
-        background: rgba(124, 58, 237, 0.05) !important;
-        border: 2px dashed rgba(124, 58, 237, 0.3) !important;
-        border-radius: 16px !important;
-        padding: 2rem !important;
-        transition: all 0.3s ease !important;
-    }
-
-    [data-testid="stFileUploader"]:hover {
-        border-color: rgba(124, 58, 237, 0.6) !important;
-        background: rgba(124, 58, 237, 0.08) !important;
-    }
-
-    [data-testid="stFileUploader"] section {
-        background: transparent !important;
-    }
-
-    [data-testid="stFileUploader"] small {
-        color: #81768F !important;
-    }
-
-    [data-testid="stFileUploaderFile"] {
-        background: rgba(124, 58, 237, 0.1) !important;
-        border: 1px solid rgba(124, 58, 237, 0.2) !important;
-        border-radius: 12px !important;
-        padding: 1rem !important;
-    }
-
-
-    /* =========================================
-       CHAT MESSAGES
-       ========================================= */
-
-    [data-testid="stChatMessage"] {
-        background: transparent !important;
-        border: none !important;
-    }
-
-    [data-testid="stChatMessage"] p {
-        color: #D8D1E3 !important;
-        line-height: 1.8 !important;
-    }
-
-    [data-testid="stChatMessage"] li {
-        color: #D8D1E3 !important;
-        line-height: 1.8 !important;
-    }
-
-    [data-testid="stChatMessage"] strong {
-        color: #F5F3FF !important;
-        font-weight: 700 !important;
-    }
-
-    [data-testid="stChatMessage"] code {
-        background: rgba(124, 58, 237, 0.15) !important;
-        color: #C4B5FD !important;
-        padding: 0.3rem 0.6rem !important;
-        border-radius: 6px !important;
-        font-size: 0.9em !important;
-    }
-
-    [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
-        background: rgba(124, 58, 237, 0.1) !important;
-        border: 1px solid rgba(124, 58, 237, 0.2) !important;
-        border-radius: 16px !important;
-        padding: 1.2rem !important;
-        margin-bottom: 1rem !important;
-    }
-
-    [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-assistant"]) {
-        background: transparent !important;
-        padding: 1rem 0 !important;
-        margin-bottom: 2rem !important;
-    }
-
-
-    /* =========================================
-       CHAT INPUT
-       ========================================= */
-
-    [data-testid="stChatInput"] {
-        background: rgba(15, 12, 22, 0.8) !important;
-        backdrop-filter: blur(10px) !important;
-        border: 1.5px solid rgba(124, 58, 237, 0.3) !important;
-        border-radius: 16px !important;
-        box-shadow: 0 8px 32px rgba(124, 58, 237, 0.1) !important;
-        transition: all 0.3s ease !important;
-    }
-
-    [data-testid="stChatInput"]:focus-within {
-        border-color: #7C3AED !important;
-        box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2), 0 12px 40px rgba(124, 58, 237, 0.15) !important;
-    }
-
-    [data-testid="stChatInput"] > div {
-        background: transparent !important;
-        border: none !important;
-    }
-
-    [data-testid="stChatInput"] textarea {
-        background: transparent !important;
-        color: #F5F3FF !important;
-        caret-color: #A78BFA !important;
-        border: none !important;
-        font-size: 1rem !important;
-        line-height: 1.5 !important;
-    }
-
-    [data-testid="stChatInput"] textarea::placeholder {
-        color: #766B84 !important;
-    }
-
-    [data-testid="stChatInput"] button {
-        background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%) !important;
-        color: #FFFFFF !important;
-        border: none !important;
-        border-radius: 10px !important;
-        transition: all 0.2s ease !important;
-        font-weight: 700 !important;
-    }
-
-    [data-testid="stChatInput"] button:hover {
-        background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%) !important;
-        box-shadow: 0 6px 20px rgba(124, 58, 237, 0.3) !important;
-        transform: translateY(-2px) !important;
-    }
-
-
-    /* =========================================
-       TEXT INPUT
-       ========================================= */
-
-    div[data-baseweb="input"] {
-        background: rgba(16, 13, 23, 0.6) !important;
-        border-color: rgba(124, 58, 237, 0.2) !important;
-        border-radius: 10px !important;
-    }
-
-    div[data-baseweb="input"] input {
-        background: transparent !important;
-        color: #F5F3FF !important;
-        font-size: 1rem !important;
-    }
-
-    div[data-baseweb="input"] input::placeholder {
-        color: #766B84 !important;
-    }
-
-
-    /* =========================================
-       CONTAINERS
-       ========================================= */
-
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: rgba(16, 13, 23, 0.5) !important;
-        border: 1px solid rgba(124, 58, 237, 0.15) !important;
-        border-radius: 16px !important;
-        padding: 1.5rem !important;
-        transition: all 0.3s ease !important;
-    }
-
-    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-        border-color: rgba(124, 58, 237, 0.3) !important;
-        background: rgba(16, 13, 23, 0.7) !important;
-    }
-
-
-    /* =========================================
-       ALERTS
-       ========================================= */
-
-    div[data-testid="stAlert"] {
-        border-radius: 12px !important;
-        border: 1px solid !important;
-        padding: 1rem !important;
-        background-color: rgba(0, 0, 0, 0.2) !important;
-    }
-
-
-    /* =========================================
-       EXPANDERS
-       ========================================= */
-
-    details {
-        border: 1px solid rgba(124, 58, 237, 0.15) !important;
-        border-radius: 12px !important;
-        padding: 1rem !important;
-        background: rgba(16, 13, 23, 0.5) !important;
-        transition: all 0.3s ease !important;
-    }
-
-    details:hover {
-        border-color: rgba(124, 58, 237, 0.3) !important;
-        background: rgba(16, 13, 23, 0.7) !important;
-    }
-
-    summary {
-        color: #F5F3FF !important;
-        font-weight: 700 !important;
-        cursor: pointer !important;
-        transition: color 0.2s ease !important;
-    }
-
-    summary:hover {
-        color: #A78BFA !important;
-    }
-
-
-    /* =========================================
-       DIVIDER
-       ========================================= */
-
-    hr {
-        border-color: rgba(124, 58, 237, 0.15) !important;
-        margin: 1.5rem 0 !important;
-    }
-
-
-    /* =========================================
-       SCROLLBAR
-       ========================================= */
-
-    ::-webkit-scrollbar {
+    .status-dot {
         width: 8px;
         height: 8px;
+        border-radius: 50%;
+        background: #a855f7;
+        box-shadow: 0 0 10px #a855f7;
     }
 
-    ::-webkit-scrollbar-track {
-        background: transparent;
+    /* ================================
+       MAIN HERO
+    ================================= */
+
+    .hero {
+        padding: 35px 0 25px 0;
     }
 
-    ::-webkit-scrollbar-thumb {
-        background: rgba(124, 58, 237, 0.2);
-        border-radius: 10px;
-        transition: background 0.2s ease;
+    .hero-badge {
+        display: inline-block;
+        padding: 7px 12px;
+        border-radius: 20px;
+        background: rgba(168,85,247,0.10);
+        border: 1px solid rgba(168,85,247,0.25);
+        color: #c084fc;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 15px;
     }
 
-    ::-webkit-scrollbar-thumb:hover {
-        background: rgba(124, 58, 237, 0.4);
+    .hero-title {
+        font-size: 48px;
+        line-height: 1.08;
+        font-weight: 800;
+        letter-spacing: -2px;
+        margin-bottom: 12px;
+        color: #ffffff;
     }
 
+    .hero-title span {
+        background: linear-gradient(
+            90deg,
+            #a855f7,
+            #c084fc,
+            #e9d5ff
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
 
-    /* =========================================
-       CARD STYLING (Custom)
-       ========================================= */
+    .hero-text {
+        color: #9ca3af;
+        font-size: 16px;
+        line-height: 1.6;
+        max-width: 720px;
+    }
+
+    /* ================================
+       FEATURE CARDS
+    ================================= */
 
     .feature-card {
-        padding: 24px;
-        background: linear-gradient(135deg, rgba(124, 58, 237, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
-        border: 1px solid rgba(124, 58, 237, 0.2);
-        border-radius: 16px;
-        min-height: 180px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .feature-card:hover {
-        border-color: rgba(124, 58, 237, 0.4);
-        background: linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(139, 92, 246, 0.08) 100%);
-        box-shadow: 0 8px 24px rgba(124, 58, 237, 0.15);
-        transform: translateY(-4px);
+        background: rgba(255,255,255,0.025);
+        border: 1px solid rgba(168,85,247,0.13);
+        border-radius: 18px;
+        padding: 20px;
+        height: 150px;
+        transition: 0.2s;
     }
 
     .feature-icon {
-        font-size: 36px;
-        margin-bottom: 12px;
+        font-size: 25px;
+        margin-bottom: 10px;
     }
 
     .feature-title {
-        color: #F5F3FF;
+        color: #f5f3ff;
         font-weight: 700;
-        font-size: 16px;
-        margin-bottom: 8px;
+        font-size: 15px;
+        margin-bottom: 5px;
     }
 
-    .feature-desc {
-        color: #8E849B;
-        font-size: 13px;
-        line-height: 1.6;
-    }
-
-    .status-card {
-        padding: 16px;
-        background: linear-gradient(135deg, rgba(16, 65, 48, 0.2) 0%, rgba(22, 68, 59, 0.1) 100%);
-        border: 1px solid rgba(134, 239, 172, 0.3);
-        border-radius: 12px;
-        transition: all 0.3s ease;
-    }
-
-    .status-card:hover {
-        border-color: rgba(134, 239, 172, 0.5);
-        background: linear-gradient(135deg, rgba(16, 65, 48, 0.3) 0%, rgba(22, 68, 59, 0.15) 100%);
-    }
-
-    .status-title {
-        color: #86EFAC;
-        font-weight: 700;
-        font-size: 14px;
-        margin-bottom: 4px;
-    }
-
-    .status-desc {
-        color: #6EE7B7;
+    .feature-text {
+        color: #8f8a9d;
         font-size: 12px;
+        line-height: 1.5;
     }
 
-    .info-card {
-        padding: 16px;
-        background: rgba(16, 13, 23, 0.5);
-        border: 1px solid rgba(124, 58, 237, 0.1);
-        border-radius: 12px;
-        transition: all 0.3s ease;
+    /* ================================
+       CHAT
+    ================================= */
+
+    .chat-header {
+        margin-top: 35px;
+        margin-bottom: 15px;
+        font-size: 22px;
+        font-weight: 700;
+        color: #ffffff;
     }
 
-    .info-card:hover {
-        border-color: rgba(124, 58, 237, 0.2);
-        background: rgba(16, 13, 23, 0.7);
+    /* ================================
+       METRICS
+    ================================= */
+
+    .metric-card {
+        background: rgba(168,85,247,0.06);
+        border: 1px solid rgba(168,85,247,0.15);
+        border-radius: 14px;
+        padding: 12px;
+        text-align: center;
     }
 
-    .info-text {
-        color: #8E849B;
-        font-size: 13px;
-        line-height: 1.6;
+    .metric-value {
+        color: #c084fc;
+        font-size: 22px;
+        font-weight: 800;
     }
 
-    /* =========================================
-       ANIMATIONS
-       ========================================= */
-
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    .metric-label {
+        color: #8f8a9d;
+        font-size: 11px;
+        margin-top: 2px;
     }
 
-    @keyframes slideInRight {
-        from {
-            opacity: 0;
-            transform: translateX(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
+    /* ================================
+       BUTTONS
+    ================================= */
+
+    .stButton > button {
+        border-radius: 10px;
+        border: 1px solid rgba(168,85,247,0.25);
+        background: #7c3aed;
+        color: white;
+        font-weight: 600;
+        transition: 0.2s;
     }
 
-    [data-testid="stChatMessage"] {
-        animation: fadeIn 0.4s ease-out;
+    .stButton > button:hover {
+        border-color: #a855f7;
+        background: #8b5cf6;
+        color: white;
     }
 
-    /* =========================================
-       MOBILE RESPONSIVE
-       ========================================= */
+    /* ================================
+       FILE UPLOADER
+    ================================= */
 
-    @media (max-width: 768px) {
-
-        .block-container {
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
-            padding-top: 1rem !important;
-        }
-
-        h1 {
-            font-size: 1.8rem !important;
-        }
-
-        h2 {
-            font-size: 1.4rem !important;
-        }
-
-        .feature-card {
-            min-height: 150px;
-            padding: 16px;
-        }
-
-        [data-testid="stChatInput"] {
-            border-radius: 12px !important;
-        }
-
-        .stButton > button {
-            padding: 0.6rem 1rem !important;
-        }
+    [data-testid="stFileUploader"] {
+        background: rgba(255,255,255,0.025);
+        border-radius: 14px;
     }
 
-    /* =========================================
-       REMOVE STREAMLIT BRANDING
-       ========================================= */
-
-    #MainMenu {
-        visibility: hidden;
+    [data-testid="stFileUploaderDropzone"] {
+        background: #12101a !important;
+        border: 1px dashed rgba(168,85,247,0.35) !important;
     }
 
-    footer {
-        visibility: hidden;
+    [data-testid="stFileUploaderDropzone"] * {
+        color: #ddd6fe !important;
+    }
+
+    /* ================================
+       CHAT INPUT
+    ================================= */
+
+    [data-testid="stChatInput"] {
+        background: #11101a !important;
+        border: 1px solid rgba(168,85,247,0.25) !important;
+    }
+
+    [data-testid="stChatInput"] textarea {
+        background: #11101a !important;
+        color: #ffffff !important;
+    }
+
+    [data-testid="stChatInput"] textarea::placeholder {
+        color: #77717f !important;
+    }
+
+    /* ================================
+       EXPANDER
+    ================================= */
+
+    .streamlit-expanderHeader {
+        background: rgba(255,255,255,0.025);
+        border-radius: 10px;
+        color: #ddd6fe !important;
+    }
+
+    /* ================================
+       TEXT
+    ================================= */
+
+    p, label {
+        color: #d4d0dc;
     }
 
     </style>
@@ -595,36 +351,15 @@ st.markdown(
 
 
 # =========================================================
-# PATHS
+# CHECK API KEY
 # =========================================================
 
-CHROMA_DIR = "./chroma_db"
-TEMP_DIR = "./temp"
-
-Path(TEMP_DIR).mkdir(exist_ok=True)
-
-
-# =========================================================
-# SESSION STATE
-# =========================================================
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-if "vectorstore" not in st.session_state:
-    st.session_state.vectorstore = None
-
-if "document_name" not in st.session_state:
-    st.session_state.document_name = None
-
-if "document_pages" not in st.session_state:
-    st.session_state.document_pages = 0
-
-if "document_chunks" not in st.session_state:
-    st.session_state.document_chunks = 0
-
-if "processed" not in st.session_state:
-    st.session_state.processed = False
+if not GEMINI_API_KEY:
+    st.error(
+        "❌ GEMINI_API_KEY is missing. "
+        "Add it to your .env file locally or Streamlit Secrets after deployment."
+    )
+    st.stop()
 
 
 # =========================================================
@@ -633,17 +368,19 @@ if "processed" not in st.session_state:
 
 @st.cache_resource
 def get_embeddings():
+
     return HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
 
 # =========================================================
-# LLM
+# GEMINI
 # =========================================================
 
 @st.cache_resource
 def get_llm():
+
     return ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
         temperature=0.2,
@@ -656,108 +393,83 @@ def get_llm():
 # =========================================================
 
 def process_pdf(uploaded_file):
-    """Process uploaded PDF and create vector store"""
-    
-    file_path = os.path.join(TEMP_DIR, uploaded_file.name)
 
-    with open(file_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
+    try:
 
-    loader = PyPDFLoader(file_path)
-    documents = loader.load()
+        # -----------------------------------------
+        # Save temporary PDF
+        # -----------------------------------------
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=150
-    )
-    chunks = splitter.split_documents(documents)
+        file_path = TEMP_DIR / uploaded_file.name
 
-    embeddings = get_embeddings()
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
 
-    if os.path.exists(CHROMA_DIR):
-        shutil.rmtree(CHROMA_DIR)
+        # -----------------------------------------
+        # Load PDF
+        # -----------------------------------------
 
-    vectorstore = Chroma.from_documents(
-        documents=chunks,
-        embedding=embeddings,
-        persist_directory=CHROMA_DIR
-    )
+        loader = PyPDFLoader(str(file_path))
 
-    st.session_state.vectorstore = vectorstore
-    st.session_state.document_name = uploaded_file.name
-    st.session_state.document_pages = len(documents)
-    st.session_state.document_chunks = len(chunks)
-    st.session_state.processed = True
-    st.session_state.messages = []
+        documents = loader.load()
 
-    return len(documents), len(chunks)
+        if not documents:
+            raise Exception("No text could be extracted from this PDF.")
 
+        # -----------------------------------------
+        # Split into chunks
+        # -----------------------------------------
 
-# =========================================================
-# ASK COURSE-MATE
-# =========================================================
-
-def ask_course_mate(question):
-    """Process user question and return answer with sources"""
-    
-    vectorstore = st.session_state.vectorstore
-
-    if vectorstore is None:
-        return (
-            "Please upload and process your course PDF first.",
-            []
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=150
         )
 
-    retriever = vectorstore.as_retriever(
-        search_type="mmr",
-        search_kwargs={
-            "k": 4,
-            "fetch_k": 10,
-            "lambda_mult": 0.5
-        }
-    )
+        chunks = splitter.split_documents(documents)
 
-    docs = retriever.invoke(question)
+        if not chunks:
+            raise Exception("Could not create text chunks from the PDF.")
 
-    if not docs:
-        return (
-            "I couldn't find relevant information in your notes. Try rephrasing your question.",
-            []
+        # -----------------------------------------
+        # Embeddings
+        # -----------------------------------------
+
+        embeddings = get_embeddings()
+
+        # -----------------------------------------
+        # FREE LOCAL VECTOR DATABASE
+        # FAISS
+        # -----------------------------------------
+
+        vectorstore = FAISS.from_documents(
+            documents=chunks,
+            embedding=embeddings
         )
 
-    context_parts = []
+        # -----------------------------------------
+        # Save in session
+        # -----------------------------------------
 
-    for doc in docs:
-        page = doc.metadata.get("page", 0) + 1
-        context_parts.append(
-            f"[Page {page}]\n{doc.page_content}"
-        )
+        st.session_state.vectorstore = vectorstore
+        st.session_state.file_name = uploaded_file.name
+        st.session_state.pages = len(documents)
+        st.session_state.chunks = len(chunks)
+        st.session_state.messages = []
 
-    context = "\n\n---\n\n".join(context_parts)
+        # -----------------------------------------
+        # Remove temporary PDF
+        # -----------------------------------------
 
-    prompt = f"""
-You are Course-Mate, an AI study assistant.
+        try:
+            file_path.unlink()
+        except Exception:
+            pass
 
-Answer the student's question using ONLY the provided course material.
+        return True, "PDF processed successfully!"
 
-Guidelines:
-- If the answer is not in the material, say so clearly.
-- Explain concepts simply for college students.
-- Use bullet points for clarity.
-- Be comprehensive but concise.
+    except Exception as e:
 
-Course Material:
-{context}
-
-Student Question:
-{question}
-
-Answer:"""
-
-    llm = get_llm()
-    response = llm.invoke(prompt)
-
-    return response.content, docs
+        return False, str(e)
 
 
 # =========================================================
@@ -766,356 +478,571 @@ Answer:"""
 
 with st.sidebar:
 
-    # Brand
     st.markdown(
         """
-        <div style="
-            padding: 16px;
-            background: linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(139, 92, 246, 0.08) 100%);
-            border-radius: 14px;
-            margin-bottom: 24px;
-            border: 1px solid rgba(124, 58, 237, 0.2);
-        ">
-            <div style="
-                font-size: 32px;
-                font-weight: 800;
-                color: #F8F7FF;
-                margin-bottom: 8px;
-                letter-spacing: -0.5px;
-            ">
-                📚 Course-Mate
+        <div class="brand">
+            <div class="brand-title">
+                Course<span>-Mate</span>
             </div>
-            <div style="
-                color: #A78BFA;
-                font-size: 14px;
-                font-weight: 500;
-            ">
-                Your AI Study Companion
+            <div class="brand-subtitle">
+                Your AI-powered study companion
             </div>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
-    st.divider()
+    st.markdown(
+        """
+        <div class="sidebar-card">
 
-    st.markdown("### 📄 Study Material")
+            <div class="sidebar-heading">
+                📚 Knowledge Base
+            </div>
+
+        """,
+        unsafe_allow_html=True,
+    )
 
     uploaded_file = st.file_uploader(
         "Upload your course PDF",
         type=["pdf"],
         label_visibility="collapsed",
-        help="Upload a PDF file containing your course notes"
     )
 
-    if uploaded_file:
+    process_button = st.button(
+        "⚡ Process PDF",
+        use_container_width=True,
+    )
 
-        if st.session_state.document_name != uploaded_file.name:
-            st.session_state.processed = False
+    st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown(
-            f"""
-            <div style="
-                margin-top: 12px;
-                padding: 14px;
-                background: linear-gradient(135deg, rgba(124, 58, 237, 0.12) 0%, rgba(139, 92, 246, 0.06) 100%);
-                border: 1px solid rgba(124, 58, 237, 0.25);
-                border-radius: 12px;
-            ">
-                <div style="
-                    color: #F5F3FF;
-                    font-size: 14px;
-                    font-weight: 700;
-                ">
-                    📄 {uploaded_file.name}
-                </div>
-                <div style="
-                    color: #8E849B;
-                    font-size: 12px;
-                    margin-top: 6px;
-                ">
-                    {uploaded_file.size / (1024 * 1024):.2f} MB
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+    # -----------------------------------------
+    # PROCESS
+    # -----------------------------------------
 
-        st.write("")
+    if process_button:
 
-        if st.button(
-            "⚡ Process PDF",
-            use_container_width=True,
-            help="Process the PDF to create a searchable knowledge base"
-        ):
-            with st.spinner("📖 Reading and indexing your material..."):
-                try:
-                    pages, chunks = process_pdf(uploaded_file)
-                    st.success(
-                        f"✅ Processed {pages} pages into {chunks} searchable chunks."
-                    )
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Processing failed: {str(e)}")
+        if uploaded_file is None:
 
-    st.divider()
+            st.warning("Please upload a PDF first.")
 
-    st.markdown("### 🧠 Knowledge Base")
+        else:
 
-    if st.session_state.processed:
+            with st.spinner("Reading and indexing your PDF..."):
+
+                success, message = process_pdf(uploaded_file)
+
+            if success:
+                st.success(message)
+                st.rerun()
+
+            else:
+                st.error(f"Processing failed: {message}")
+
+    # -----------------------------------------
+    # STATUS
+    # -----------------------------------------
+
+    if st.session_state.vectorstore:
 
         st.markdown(
             """
-            <div class="status-card">
-                <div class="status-title">
-                    🟢 Connected & Ready
+            <div class="sidebar-card">
+
+                <div class="sidebar-heading">
+                    🟢 Knowledge Base Ready
                 </div>
-                <div class="status-desc">
-                    Your notes are indexed and ready for questions.
+
+                <div class="status">
+                    <div class="status-dot"></div>
+                    Ready to answer questions
                 </div>
+
             </div>
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
 
-        st.write("")
+        st.markdown("###")
 
         col1, col2 = st.columns(2)
-        with col1:
-            st.metric("📑 Pages", st.session_state.document_pages)
-        with col2:
-            st.metric("🔗 Chunks", st.session_state.document_chunks)
 
-        st.write("")
-        st.caption(f"**Document:** {st.session_state.document_name}")
-        st.write("")
+        with col1:
+
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <div class="metric-value">
+                        {st.session_state.pages}
+                    </div>
+                    <div class="metric-label">
+                        Pages
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        with col2:
+
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <div class="metric-value">
+                        {st.session_state.chunks}
+                    </div>
+                    <div class="metric-label">
+                        Chunks
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("###")
+
+        st.caption(
+            f"📄 {st.session_state.file_name}"
+        )
 
         if st.button(
             "🗑️ Clear Knowledge Base",
-            use_container_width=True,
-            help="Remove the current knowledge base"
+            use_container_width=True
         ):
+
             st.session_state.vectorstore = None
-            st.session_state.document_name = None
-            st.session_state.document_pages = 0
-            st.session_state.document_chunks = 0
-            st.session_state.processed = False
+            st.session_state.file_name = None
+            st.session_state.pages = 0
+            st.session_state.chunks = 0
             st.session_state.messages = []
 
-            if os.path.exists(CHROMA_DIR):
-                shutil.rmtree(CHROMA_DIR)
-
-            st.success("✅ Knowledge base cleared.")
             st.rerun()
 
     else:
 
         st.markdown(
             """
-            <div class="info-card">
-                <div class="info-text">
-                    📌 Upload and process a PDF to create your searchable knowledge base.
+            <div class="sidebar-card">
+
+                <div class="sidebar-heading">
+                    ⚪ No Document Loaded
                 </div>
+
+                <div class="status">
+                    <div class="status-dot"></div>
+                    Upload a PDF to begin
+                </div>
+
             </div>
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
 
+    st.markdown("---")
 
-# =========================================================
-# MAIN AREA - HEADER
-# =========================================================
-
-st.markdown(
-    """
-    <div style="text-align: center; padding: 40px 20px;">
-        <div style="
-            font-size: 3.5rem;
-            font-weight: 800;
-            color: #F8F7FF;
-            letter-spacing: -1px;
-            background: linear-gradient(135deg, #F8F7FF 0%, #A78BFA 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 16px;
-        ">
-            Ask Your Notes
-        </div>
-        <div style="
-            font-size: 16px;
-            color: #82768F;
-            max-width: 600px;
-            margin: 0 auto;
-            line-height: 1.8;
-        ">
-            Upload your course materials and get instant answers powered by AI.
-            Study smarter, not harder. 🚀
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
-# =========================================================
-# EMPTY STATE
-# =========================================================
-
-if not st.session_state.messages and not st.session_state.processed:
-
-    col1, col2, col3 = st.columns(3, gap="medium")
-
-    with col1:
-        st.markdown(
-            """
-            <div class="feature-card">
-                <div class="feature-icon">📄</div>
-                <div class="feature-title">Upload Notes</div>
-                <div class="feature-desc">Select your course PDF and upload it to get started.</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with col2:
-        st.markdown(
-            """
-            <div class="feature-card">
-                <div class="feature-icon">⚡</div>
-                <div class="feature-title">Process & Index</div>
-                <div class="feature-desc">Click process to analyze and index your course material.</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with col3:
-        st.markdown(
-            """
-            <div class="feature-card">
-                <div class="feature-icon">🎓</div>
-                <div class="feature-title">Ask Questions</div>
-                <div class="feature-desc">Chat with your notes to understand concepts better.</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-elif not st.session_state.messages and st.session_state.processed:
-
-    st.markdown(
-        """
-        <div style="
-            text-align: center;
-            margin-top: 40px;
-            padding: 20px;
-            color: #766B84;
-            font-size: 15px;
-        ">
-            ✨ Your knowledge base is ready. Ask your first question below!
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.caption(
+        "Course-Mate • RAG Study Assistant"
     )
 
 
 # =========================================================
-# CHAT HISTORY
+# MAIN HERO
+# =========================================================
+
+st.markdown(
+    """
+    <div class="hero">
+
+        <div class="hero-badge">
+            ✦ RETRIEVAL-AUGMENTED GENERATION
+        </div>
+
+        <div class="hero-title">
+            Study smarter with
+            <span>your own notes.</span>
+        </div>
+
+        <div class="hero-text">
+            Upload your course material and ask questions.
+            Course-Mate searches your notes first and uses
+            Gemini to generate grounded answers.
+        </div>
+
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# =========================================================
+# FEATURE CARDS
+# =========================================================
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+
+    st.markdown(
+        """
+        <div class="feature-card">
+
+            <div class="feature-icon">📄</div>
+
+            <div class="feature-title">
+                Upload Notes
+            </div>
+
+            <div class="feature-text">
+                Upload your course PDF and automatically
+                convert it into searchable knowledge.
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+with col2:
+
+    st.markdown(
+        """
+        <div class="feature-card">
+
+            <div class="feature-icon">🔎</div>
+
+            <div class="feature-title">
+                Smart Retrieval
+            </div>
+
+            <div class="feature-text">
+                Relevant sections are retrieved from your
+                notes before generating an answer.
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+with col3:
+
+    st.markdown(
+        """
+        <div class="feature-card">
+
+            <div class="feature-icon">🤖</div>
+
+            <div class="feature-title">
+                AI Answers
+            </div>
+
+            <div class="feature-text">
+                Gemini explains concepts using the
+                information found in your study material.
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# =========================================================
+# NO PDF MESSAGE
+# =========================================================
+
+if st.session_state.vectorstore is None:
+
+    st.markdown(
+        """
+        <div style="
+            margin-top:45px;
+            padding:35px;
+            border-radius:20px;
+            border:1px solid rgba(168,85,247,0.15);
+            background:rgba(255,255,255,0.02);
+            text-align:center;
+        ">
+
+            <div style="font-size:42px;">
+                📚
+            </div>
+
+            <div style="
+                font-size:20px;
+                font-weight:700;
+                margin-top:10px;
+                color:#ffffff;
+            ">
+                Upload your course material
+            </div>
+
+            <div style="
+                color:#8f8a9d;
+                font-size:14px;
+                margin-top:8px;
+            ">
+                Upload a PDF from the sidebar to start
+                asking questions.
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.stop()
+
+
+# =========================================================
+# CHAT HEADER
+# =========================================================
+
+st.markdown(
+    """
+    <div class="chat-header">
+        💬 Ask Your Notes
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# =========================================================
+# DISPLAY OLD MESSAGES
 # =========================================================
 
 for message in st.session_state.messages:
 
-    with st.chat_message(
-        message["role"],
-        avatar="👤" if message["role"] == "user" else "🤖"
-    ):
+    with st.chat_message(message["role"]):
 
         st.markdown(message["content"])
 
-        if message["role"] == "assistant" and message.get("sources"):
-
-            with st.expander("📚 View Sources", expanded=False):
-
-                shown_pages = set()
-
-                for doc in message["sources"]:
-
-                    page = doc.metadata.get("page", 0) + 1
-
-                    if page not in shown_pages:
-                        st.markdown(f"**Page {page}**")
-                        shown_pages.add(page)
-
 
 # =========================================================
-# CHAT INPUT
+# USER QUESTION
 # =========================================================
 
 question = st.chat_input(
-    "Ask something about your notes...",
-    max_chars=1000
+    "Ask something from your notes..."
 )
 
 
 if question:
 
-    if not st.session_state.processed:
+    # -----------------------------------------
+    # USER MESSAGE
+    # -----------------------------------------
 
-        st.warning(
-            "⚠️ Please upload and process your course PDF first.",
-            icon="📄"
-        )
-
-    else:
-
-        st.session_state.messages.append({
+    st.session_state.messages.append(
+        {
             "role": "user",
             "content": question
-        })
+        }
+    )
 
-        with st.chat_message("user", avatar="👤"):
-            st.markdown(question)
+    with st.chat_message("user"):
 
-        with st.chat_message("assistant", avatar="🤖"):
+        st.markdown(question)
 
-            with st.spinner("🔍 Searching your notes..."):
+    # -----------------------------------------
+    # ASSISTANT
+    # -----------------------------------------
 
-                try:
+    with st.chat_message("assistant"):
 
-                    answer, sources = ask_course_mate(question)
+        with st.spinner("Searching your notes..."):
+
+            try:
+
+                vectorstore = st.session_state.vectorstore
+
+                # -----------------------------------------
+                # MMR RETRIEVER
+                # -----------------------------------------
+
+                retriever = vectorstore.as_retriever(
+                    search_type="mmr",
+                    search_kwargs={
+                        "k": 4,
+                        "fetch_k": 10,
+                        "lambda_mult": 0.5
+                    }
+                )
+
+                # -----------------------------------------
+                # RETRIEVE
+                # -----------------------------------------
+
+                docs = retriever.invoke(question)
+
+                if not docs:
+
+                    answer = (
+                        "I couldn't find relevant information "
+                        "in your uploaded notes."
+                    )
 
                     st.markdown(answer)
 
-                    if sources:
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant",
+                            "content": answer
+                        }
+                    )
 
-                        with st.expander("📚 View Sources", expanded=False):
+                else:
 
-                            shown_pages = set()
+                    # -----------------------------------------
+                    # BUILD CONTEXT
+                    # -----------------------------------------
 
-                            for doc in sources:
+                    context_parts = []
 
-                                page = doc.metadata.get("page", 0) + 1
+                    for doc in docs:
 
-                                if page not in shown_pages:
+                        page = doc.metadata.get(
+                            "page",
+                            "Unknown"
+                        )
 
-                                    st.markdown(f"**Page {page}**")
-                                    shown_pages.add(page)
+                        context_parts.append(
+                            f"""
+                            PAGE: {page + 1 if isinstance(page, int) else page}
 
-                    st.session_state.messages.append({
+                            {doc.page_content}
+                            """
+                        )
+
+                    context = "\n\n---\n\n".join(
+                        context_parts
+                    )
+
+                    # -----------------------------------------
+                    # PROMPT
+                    # -----------------------------------------
+
+                    prompt = f"""
+You are Course-Mate, an AI study assistant.
+
+Answer the user's question using ONLY the
+provided course material.
+
+COURSE MATERIAL:
+{context}
+
+USER QUESTION:
+{question}
+
+RULES:
+
+1. Use only the provided course material.
+2. Do not invent facts.
+3. If the answer is not available in the material,
+   clearly say that it is not present in the uploaded notes.
+4. Explain the answer clearly for a college student.
+5. Use bullet points when useful.
+6. For technical concepts, give a simple example
+   if the material supports it.
+"""
+
+                    # -----------------------------------------
+                    # GEMINI
+                    # -----------------------------------------
+
+                    llm = get_llm()
+
+                    response = llm.invoke(prompt)
+
+                    answer = response.content
+
+                    # -----------------------------------------
+                    # SHOW ANSWER
+                    # -----------------------------------------
+
+                    st.markdown(answer)
+
+                    # -----------------------------------------
+                    # SOURCES
+                    # -----------------------------------------
+
+                    with st.expander(
+                        "📚 View sources"
+                    ):
+
+                        pages_found = []
+
+                        for doc in docs:
+
+                            page = doc.metadata.get(
+                                "page",
+                                None
+                            )
+
+                            if isinstance(page, int):
+
+                                page_number = page + 1
+
+                                if page_number not in pages_found:
+
+                                    pages_found.append(
+                                        page_number
+                                    )
+
+                        if pages_found:
+
+                            st.write(
+                                "Retrieved from pages: "
+                                + ", ".join(
+                                    map(str, pages_found)
+                                )
+                            )
+
+                        for i, doc in enumerate(docs):
+
+                            page = doc.metadata.get(
+                                "page",
+                                "Unknown"
+                            )
+
+                            if isinstance(page, int):
+
+                                page = page + 1
+
+                            st.markdown(
+                                f"**Source {i + 1} — Page {page}**"
+                            )
+
+                            preview = doc.page_content[:500]
+
+                            st.caption(preview)
+
+                    # -----------------------------------------
+                    # SAVE MESSAGE
+                    # -----------------------------------------
+
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant",
+                            "content": answer
+                        }
+                    )
+
+            except Exception as e:
+
+                error_message = (
+                    f"Something went wrong while answering: {e}"
+                )
+
+                st.error(error_message)
+
+                st.session_state.messages.append(
+                    {
                         "role": "assistant",
-                        "content": answer,
-                        "sources": sources
-                    })
-
-                except Exception as e:
-
-                    error_message = f"❌ Something went wrong: {str(e)}"
-
-                    st.error(error_message)
-
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": error_message,
-                        "sources": []
-                    })
+                        "content": error_message
+                    }
+                )
