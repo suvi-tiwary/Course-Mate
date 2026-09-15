@@ -22,9 +22,9 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 load_dotenv()
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-if not GOOGLE_API_KEY:
+if not GEMINI_API_KEY:
     st.error("GOOGLE_API_KEY is missing. Add it to your .env file.")
     st.stop()
 
@@ -690,7 +690,7 @@ if ask:
                 # Gemini
                 llm = ChatGoogleGenerativeAI(
                     model="gemini-2.5-flash",
-                    google_api_key=GOOGLE_API_KEY,
+                    google_api_key=GEMINI_API_KEY,
                     temperature=0.2,
                 )
 
