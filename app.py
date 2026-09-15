@@ -1,7 +1,8 @@
+import os
+import tempfile
+
 import streamlit as st
 from dotenv import load_dotenv
-import tempfile
-import os
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -24,7 +25,31 @@ st.set_page_config(
 )
 
 st.title("📚 RAG Book Assistant")
-st.write("Upload a PDF and ask questions from the document")
+st.write("Upload a PDF and ask questions from the document.")
+
+
+# =========================================================
+# CHECK MISTRAL API KEY
+# =========================================================
+
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
+
+if not MISTRAL_API_KEY:
+    try:
+        MISTRAL_API_KEY = st.secrets["MISTRAL_API_KEY"]
+    except Exception:
+        MISTRAL_API_KEY = None
+
+
+# =========================================================
+# SESSION STATE
+# =========================================================
+
+if "vectorstore" not in st.session_state:
+    st.session_state.vectorstore = None
+
+if "file_name" not in st.session_state:
+    st.session_state.file_name = None
 
 
 # =========================================================
@@ -32,85 +57,119 @@ st.write("Upload a PDF and ask questions from the document")
 # =========================================================
 
 uploaded_file = st.file_uploader(
-    "Upload a PDF book",
-    type="pdf"
+    "📄 Upload a PDF book",
+    type=["pdf"]
 )
 
 
 if uploaded_file:
 
-    # Save uploaded PDF temporarily
-    with tempfile.NamedTemporaryFile(
-        delete=False,
-        suffix=".pdf"
-    ) as tmp_file:
-
-        tmp_file.write(uploaded_file.read())
-        file_path = tmp_file.name
-
-    st.success("PDF uploaded successfully!")
-
+    st.success(f"Uploaded: {uploaded_file.name}")
 
     # =====================================================
     # CREATE VECTOR DATABASE
     # =====================================================
 
-    if st.button("Create Vector Database"):
+    if st.button("🚀 Create Vector Database", use_container_width=True):
 
-        with st.spinner("Processing document..."):
+        try:
 
-            # Load PDF
-            loader = PyPDFLoader(file_path)
-            docs = loader.load()
+            with st.spinner("Reading PDF..."):
 
-            # Split document
-            splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200
+                # Create temporary PDF
+                with tempfile.NamedTemporaryFile(
+                    delete=False,
+                    suffix=".pdf"
+                ) as tmp_file:
+
+                    tmp_file.write(uploaded_file.getvalue())
+                    file_path = tmp_file.name
+
+
+                # Load PDF
+                loader = PyPDFLoader(file_path)
+                documents = loader.load()
+
+
+            with st.spinner("Splitting document into chunks..."):
+
+                splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=1000,
+                    chunk_overlap=200
+                )
+
+                chunks = splitter.split_documents(documents)
+
+
+            st.info(
+                f"📄 Pages: {len(documents)} | "
+                f"🧩 Chunks: {len(chunks)}"
             )
-
-            chunks = splitter.split_documents(docs)
-
-            st.info(f"Created {len(chunks)} document chunks.")
 
 
             # =================================================
             # HUGGING FACE EMBEDDINGS
             # =================================================
 
-            embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2"
-            )
+            with st.spinner("Creating embeddings..."):
+
+                embeddings = HuggingFaceEmbeddings(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2",
+                    model_kwargs={
+                        "device": "cpu"
+                    },
+                    encode_kwargs={
+                        "normalize_embeddings": True
+                    }
+                )
 
 
             # =================================================
-            # CREATE CHROMA DATABASE
+            # IN-MEMORY CHROMA
             # =================================================
 
-            vectorstore = Chroma.from_documents(
-                documents=chunks,
-                embedding=embeddings,
-                persist_directory="chroma_db"
-            )
+            with st.spinner("Creating vector database..."):
 
-        st.success("Vector database created successfully! 🎉")
+                vectorstore = Chroma.from_documents(
+                    documents=chunks,
+                    embedding=embeddings
+                )
+
+
+            # Store vector database in session
+            st.session_state.vectorstore = vectorstore
+            st.session_state.file_name = uploaded_file.name
+
+
+            # Delete temporary PDF
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+
+
+            st.success("✅ Vector database created successfully!")
+
+        except Exception as e:
+
+            st.error("❌ Processing failed.")
+
+            with st.expander("Show processing error"):
+                st.code(str(e))
 
 
 # =========================================================
-# LOAD VECTOR DATABASE
+# QUESTION ANSWERING
 # =========================================================
 
-if os.path.exists("chroma_db"):
+if st.session_state.vectorstore is not None:
 
-    # Same embedding model must be used
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
+    st.divider()
 
+    st.subheader("📖 Ask Questions From the Book")
 
-    vectorstore = Chroma(
-        persist_directory="chroma_db",
-        embedding_function=embeddings
+    st.caption(
+        f"Currently loaded: {st.session_state.file_name}"
     )
 
 
@@ -118,7 +177,7 @@ if os.path.exists("chroma_db"):
     # RETRIEVER
     # =====================================================
 
-    retriever = vectorstore.as_retriever(
+    retriever = st.session_state.vectorstore.as_retriever(
         search_type="mmr",
         search_kwargs={
             "k": 4,
@@ -129,92 +188,199 @@ if os.path.exists("chroma_db"):
 
 
     # =====================================================
-    # MISTRAL LLM
+    # MISTRAL API KEY CHECK
     # =====================================================
 
-    llm = ChatMistralAI(
-        model="mistral-small-2506"
-    )
+    if not MISTRAL_API_KEY:
+
+        st.warning(
+            "⚠️ MISTRAL_API_KEY is missing."
+        )
+
+        st.info(
+            "Add MISTRAL_API_KEY in "
+            "Streamlit Cloud → Manage app → Settings → Secrets."
+        )
+
+    else:
+
+        # =================================================
+        # MISTRAL LLM
+        # =================================================
+
+        llm = ChatMistralAI(
+            model="mistral-small-2506",
+            api_key=MISTRAL_API_KEY,
+            temperature=0
+        )
 
 
-    # =====================================================
-    # PROMPT
-    # =====================================================
+        # =================================================
+        # PROMPT
+        # =================================================
 
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                """You are a helpful AI assistant.
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """
+You are a helpful AI assistant for answering questions
+from a user's uploaded book or PDF.
 
-Use ONLY the provided context to answer the question.
+Use ONLY the information provided in the context.
 
-If the answer is not present in the context,
-say exactly:
+Do not use outside knowledge.
+
+If the answer cannot be found in the context, say:
 
 "I could not find the answer in the document."
 
-Do not use outside knowledge."""
-            ),
-
-            (
-                "human",
-                """Context:
+Keep the answer clear and easy to understand.
+"""
+                ),
+                (
+                    "human",
+                    """
+Context:
 
 {context}
 
+
 Question:
 
-{question}"""
-            )
-        ]
-    )
+{question}
+"""
+                )
+            ]
+        )
 
 
-    # =====================================================
-    # QUESTION ANSWERING
-    # =====================================================
+        # =================================================
+        # USER QUESTION
+        # =================================================
 
-    st.divider()
-
-    st.subheader("📖 Ask Questions From the Book")
-
-    query = st.text_input(
-        "Enter your question"
-    )
+        query = st.text_input(
+            "💬 Enter your question",
+            placeholder="Example: What is normalization in DBMS?"
+        )
 
 
-    if query:
+        if query:
 
-        with st.spinner("Searching the document..."):
+            try:
 
-            # Retrieve relevant chunks
-            docs = retriever.invoke(query)
+                # =========================================
+                # RETRIEVE DOCUMENTS
+                # =========================================
 
-            # Create context
-            context = "\n\n".join(
-                [
-                    doc.page_content
-                    for doc in docs
-                ]
-            )
+                with st.spinner("🔎 Searching the document..."):
+
+                    docs = retriever.invoke(query)
 
 
-            # Create final prompt
-            final_prompt = prompt.invoke(
-                {
-                    "context": context,
-                    "question": query
-                }
-            )
+                if not docs:
+
+                    st.warning(
+                        "No relevant information was found "
+                        "in the document."
+                    )
+
+                else:
+
+                    # =====================================
+                    # CREATE CONTEXT
+                    # =====================================
+
+                    context = "\n\n".join(
+                        [
+                            doc.page_content
+                            for doc in docs
+                        ]
+                    )
 
 
-            # Ask Mistral
-            response = llm.invoke(
-                final_prompt
-            )
+                    # =====================================
+                    # CREATE PROMPT
+                    # =====================================
+
+                    final_prompt = prompt.invoke(
+                        {
+                            "context": context,
+                            "question": query
+                        }
+                    )
 
 
-        st.write("### 🤖 AI Answer")
+                    # =====================================
+                    # CALL MISTRAL
+                    # =====================================
 
-        st.write(response.content)
+                    with st.spinner("🤖 Generating answer..."):
+
+                        response = llm.invoke(
+                            final_prompt
+                        )
+
+
+                    # =====================================
+                    # DISPLAY ANSWER
+                    # =====================================
+
+                    st.write("### 🤖 AI Answer")
+
+                    st.write(response.content)
+
+
+                    # =====================================
+                    # SHOW SOURCES
+                    # =====================================
+
+                    with st.expander("📚 View Retrieved Sources"):
+
+                        for i, doc in enumerate(docs):
+
+                            page_number = (
+                                doc.metadata.get(
+                                    "page",
+                                    "Unknown"
+                                )
+                            )
+
+                            st.markdown(
+                                f"**Source {i + 1} "
+                                f"(Page {page_number + 1 if isinstance(page_number, int) else page_number})**"
+                            )
+
+                            st.write(
+                                doc.page_content[:1000]
+                            )
+
+                            st.divider()
+
+
+            except Exception as e:
+
+                st.error(
+                    "❌ Mistral API request failed."
+                )
+
+                st.warning(
+                    "Your PDF and embeddings are working. "
+                    "The error is coming from the Mistral API."
+                )
+
+                with st.expander("🔧 Show Mistral error details"):
+
+                    st.code(str(e))
+
+
+# =========================================================
+# FOOTER
+# =========================================================
+
+st.divider()
+
+st.caption(
+    "📚 Course-Mate RAG • Hugging Face Embeddings + "
+    "Chroma + Mistral"
+)
