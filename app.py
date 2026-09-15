@@ -1,3 +1,4 @@
+
 import os
 import tempfile
 
@@ -8,7 +9,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
-from langchain_mistralai import ChatMistralAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 
 
@@ -29,16 +30,16 @@ st.write("Upload a PDF and ask questions from the document.")
 
 
 # =========================================================
-# CHECK MISTRAL API KEY
+# CHECK GEMINI API KEY
 # =========================================================
 
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-if not MISTRAL_API_KEY:
+if not GEMINI_API_KEY:
     try:
-        MISTRAL_API_KEY = st.secrets["MISTRAL_API_KEY"]
+        GEMINI_API_KEY = st.secrets["GOOGLE_API_KEY"]
     except Exception:
-        MISTRAL_API_KEY = None
+        GEMINI_API_KEY = None
 
 
 # =========================================================
@@ -70,7 +71,10 @@ if uploaded_file:
     # CREATE VECTOR DATABASE
     # =====================================================
 
-    if st.button("🚀 Create Vector Database", use_container_width=True):
+    if st.button(
+        "🚀 Create Vector Database",
+        use_container_width=True
+    ):
 
         try:
 
@@ -82,23 +86,31 @@ if uploaded_file:
                     suffix=".pdf"
                 ) as tmp_file:
 
-                    tmp_file.write(uploaded_file.getvalue())
+                    tmp_file.write(
+                        uploaded_file.getvalue()
+                    )
+
                     file_path = tmp_file.name
 
 
                 # Load PDF
                 loader = PyPDFLoader(file_path)
+
                 documents = loader.load()
 
 
-            with st.spinner("Splitting document into chunks..."):
+            with st.spinner(
+                "Splitting document into chunks..."
+            ):
 
                 splitter = RecursiveCharacterTextSplitter(
                     chunk_size=1000,
                     chunk_overlap=200
                 )
 
-                chunks = splitter.split_documents(documents)
+                chunks = splitter.split_documents(
+                    documents
+                )
 
 
             st.info(
@@ -111,7 +123,9 @@ if uploaded_file:
             # HUGGING FACE EMBEDDINGS
             # =================================================
 
-            with st.spinner("Creating embeddings..."):
+            with st.spinner(
+                "Creating embeddings..."
+            ):
 
                 embeddings = HuggingFaceEmbeddings(
                     model_name="sentence-transformers/all-MiniLM-L6-v2",
@@ -128,7 +142,9 @@ if uploaded_file:
             # IN-MEMORY CHROMA
             # =================================================
 
-            with st.spinner("Creating vector database..."):
+            with st.spinner(
+                "Creating vector database..."
+            ):
 
                 vectorstore = Chroma.from_documents(
                     documents=chunks,
@@ -138,7 +154,10 @@ if uploaded_file:
 
             # Store vector database in session
             st.session_state.vectorstore = vectorstore
-            st.session_state.file_name = uploaded_file.name
+
+            st.session_state.file_name = (
+                uploaded_file.name
+            )
 
 
             # Delete temporary PDF
@@ -148,13 +167,20 @@ if uploaded_file:
                 pass
 
 
-            st.success("✅ Vector database created successfully!")
+            st.success(
+                "✅ Vector database created successfully!"
+            )
+
 
         except Exception as e:
 
-            st.error("❌ Processing failed.")
+            st.error(
+                "❌ Processing failed."
+            )
 
-            with st.expander("Show processing error"):
+            with st.expander(
+                "Show processing error"
+            ):
                 st.code(str(e))
 
 
@@ -166,10 +192,13 @@ if st.session_state.vectorstore is not None:
 
     st.divider()
 
-    st.subheader("📖 Ask Questions From the Book")
+    st.subheader(
+        "📖 Ask Questions From the Book"
+    )
 
     st.caption(
-        f"Currently loaded: {st.session_state.file_name}"
+        f"Currently loaded: "
+        f"{st.session_state.file_name}"
     )
 
 
@@ -177,40 +206,44 @@ if st.session_state.vectorstore is not None:
     # RETRIEVER
     # =====================================================
 
-    retriever = st.session_state.vectorstore.as_retriever(
-        search_type="mmr",
-        search_kwargs={
-            "k": 4,
-            "fetch_k": 10,
-            "lambda_mult": 0.5
-        }
+    retriever = (
+        st.session_state.vectorstore.as_retriever(
+            search_type="mmr",
+            search_kwargs={
+                "k": 4,
+                "fetch_k": 10,
+                "lambda_mult": 0.5
+            }
+        )
     )
 
 
     # =====================================================
-    # MISTRAL API KEY CHECK
+    # GEMINI API KEY CHECK
     # =====================================================
 
-    if not MISTRAL_API_KEY:
+    if not GEMINI_API_KEY:
 
         st.warning(
-            "⚠️ MISTRAL_API_KEY is missing."
+            "⚠️ GOOGLE_API_KEY is missing."
         )
 
         st.info(
-            "Add MISTRAL_API_KEY in "
-            "Streamlit Cloud → Manage app → Settings → Secrets."
+            "Add GEMINI_API_KEY in "
+            "Streamlit Cloud → "
+            "Manage app → Settings → Secrets."
         )
+
 
     else:
 
         # =================================================
-        # MISTRAL LLM
+        # GEMINI LLM
         # =================================================
 
-        llm = ChatMistralAI(
-            model="mistral-small-2506",
-            api_key=MISTRAL_API_KEY,
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            google_api_key=GEMINI_API_KEY,
             temperature=0
         )
 
@@ -224,20 +257,22 @@ if st.session_state.vectorstore is not None:
                 (
                     "system",
                     """
-You are a helpful AI assistant for answering questions
-from a user's uploaded book or PDF.
+You are a helpful AI assistant for answering
+questions from a user's uploaded book or PDF.
 
 Use ONLY the information provided in the context.
 
 Do not use outside knowledge.
 
-If the answer cannot be found in the context, say:
+If the answer cannot be found in the context,
+say exactly:
 
 "I could not find the answer in the document."
 
 Keep the answer clear and easy to understand.
 """
                 ),
+
                 (
                     "human",
                     """
@@ -261,7 +296,9 @@ Question:
 
         query = st.text_input(
             "💬 Enter your question",
-            placeholder="Example: What is normalization in DBMS?"
+            placeholder=(
+                "Example: What is normalization in DBMS?"
+            )
         )
 
 
@@ -273,7 +310,9 @@ Question:
                 # RETRIEVE DOCUMENTS
                 # =========================================
 
-                with st.spinner("🔎 Searching the document..."):
+                with st.spinner(
+                    "🔎 Searching the document..."
+                ):
 
                     docs = retriever.invoke(query)
 
@@ -281,9 +320,10 @@ Question:
                 if not docs:
 
                     st.warning(
-                        "No relevant information was found "
-                        "in the document."
+                        "No relevant information was "
+                        "found in the document."
                     )
+
 
                 else:
 
@@ -312,10 +352,12 @@ Question:
 
 
                     # =====================================
-                    # CALL MISTRAL
+                    # CALL GEMINI
                     # =====================================
 
-                    with st.spinner("🤖 Generating answer..."):
+                    with st.spinner(
+                        "🤖 Generating answer..."
+                    ):
 
                         response = llm.invoke(
                             final_prompt
@@ -326,16 +368,22 @@ Question:
                     # DISPLAY ANSWER
                     # =====================================
 
-                    st.write("### 🤖 AI Answer")
+                    st.write(
+                        "### 🤖 AI Answer"
+                    )
 
-                    st.write(response.content)
+                    st.write(
+                        response.content
+                    )
 
 
                     # =====================================
                     # SHOW SOURCES
                     # =====================================
 
-                    with st.expander("📚 View Retrieved Sources"):
+                    with st.expander(
+                        "📚 View Retrieved Sources"
+                    ):
 
                         for i, doc in enumerate(docs):
 
@@ -346,9 +394,22 @@ Question:
                                 )
                             )
 
+                            if isinstance(
+                                page_number,
+                                int
+                            ):
+                                display_page = (
+                                    page_number + 1
+                                )
+                            else:
+                                display_page = (
+                                    page_number
+                                )
+
+
                             st.markdown(
                                 f"**Source {i + 1} "
-                                f"(Page {page_number + 1 if isinstance(page_number, int) else page_number})**"
+                                f"(Page {display_page})**"
                             )
 
                             st.write(
@@ -361,15 +422,12 @@ Question:
             except Exception as e:
 
                 st.error(
-                    "❌ Mistral API request failed."
+                    "❌ Gemini API request failed."
                 )
 
-                st.warning(
-                    "Your PDF and embeddings are working. "
-                    "The error is coming from the Mistral API."
-                )
-
-                with st.expander("🔧 Show Mistral error details"):
+                with st.expander(
+                    "🔧 Show Gemini error details"
+                ):
 
                     st.code(str(e))
 
@@ -381,6 +439,7 @@ Question:
 st.divider()
 
 st.caption(
-    "📚 Course-Mate RAG • Hugging Face Embeddings + "
-    "Chroma + Mistral"
+    "📚 Course-Mate RAG • "
+    "Hugging Face Embeddings + "
+    "Chroma + Gemini"
 )
